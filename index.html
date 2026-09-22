@@ -325,8 +325,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
 /* dynamic rows (pessoas / kpis) */
 .rowset{display:flex;flex-direction:column;gap:8px}
 .dynrow{display:grid;gap:6px;align-items:center;background:var(--soft);border-radius:10px;padding:8px}
-.dynrow.people-row{grid-template-columns:1fr 1fr auto}
+.dynrow.people-row{grid-template-columns:auto 1fr 1fr auto}
 .dynrow.kpi-row{grid-template-columns:90px 1fr auto}
+.pr-photo-wrap{position:relative;width:40px;height:40px}
+.pr-photo{width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;display:block;border:1px solid var(--line)}
+.pr-photo.ph{background:var(--lime);color:#fff;display:grid;place-items:center;font-weight:800;border:none}
+.pr-clear{position:absolute;top:-5px;right:-5px;background:var(--danger);color:#fff;border-radius:50%;width:17px;height:17px;
+  display:grid;place-items:center;font-size:11px;cursor:pointer;font-style:normal;line-height:1}
 .dynrow input{padding:8px 9px}
 .dynrow .del{border:none;background:#faeaea;color:var(--danger);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:800}
 .gallery-edit{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
@@ -453,7 +458,10 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
           <button data-type="materia">📄 Matéria</button>
           <button data-type="galeria">🖼️ Galeria de fotos</button>
           <button data-type="frase">❝ Frase de destaque</button>
-          <button data-type="aniversariantes">🎂 Aniversariantes</button>
+          <button data-type="aniversariantes">🎂 Aniversários</button>
+          <button data-type="nascimentos">👶 Nascimentos</button>
+          <button data-type="casamentos">💍 Casamentos</button>
+          <button data-type="promocoes">📈 Promoções</button>
           <button data-type="indicadores">📊 Indicadores (números)</button>
         </div>
       </div>
@@ -561,6 +569,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
         <div class="thumb-actions"><button class="chip-btn" id="mImgRemove">Excluir</button></div>
       </div>
       <div class="field mt"><label>Legenda da foto</label><input id="mCaption" type="text"></div>
+    </div>
+
+    <!-- galeria extra da matéria (fotos adicionais da notícia) -->
+    <div id="materiaGalleryField">
+      <label class="file-btn mt">🖼️ Fotos extras da matéria (galeria)<input id="mMatGalleryInput" type="file" accept="image/*" multiple></label>
+      <div class="gallery-edit" id="matGalleryEdit"></div>
     </div>
 
     <!-- galeria -->
@@ -685,6 +699,7 @@ function stripImages(issue,bag){
   (c.blocks||[]).forEach(function(b){
     if(b.image)b.image=take(b.image);
     if(b.images)b.images.forEach(function(g){ if(g&&g.src)g.src=take(g.src); });
+    if(b.gallery)b.gallery.forEach(function(g){ if(g&&g.src)g.src=take(g.src); });
     if(b.people)b.people.forEach(function(p){ if(p&&p.photo)p.photo=take(p.photo); });
   });
   return c;
@@ -696,6 +711,7 @@ function hydrate(issue,imgs){
   (issue.blocks||[]).forEach(function(b){
     if(b.image)b.image=put(b.image);
     if(b.images)b.images.forEach(function(g){ if(g)g.src=put(g.src); });
+    if(b.gallery)b.gallery.forEach(function(g){ if(g)g.src=put(g.src); });
     if(b.people)b.people.forEach(function(p){ if(p)p.photo=put(p.photo); });
   });
   return issue;
@@ -786,13 +802,24 @@ var CATEGORIES = ['Destaques','Aconteceu na Raguife','Nossa Gente','Recursos Hum
   'Comunicados','Responsabilidade Social','Aniversariantes','Novidades','Outros'];
 var STORE_KEY = 'jornalRaguife.v1';   // usado no modo local (fallback do Firestore)
 
+/* blocos "de gente" — mesma estrutura (cards com nome, detalhe e foto),
+   variando só o rótulo/ícone e o texto de exemplo do detalhe */
+var PEOPLE_META = {
+  aniversariantes:{icon:'🎂', label:'Aniversários',  title:'Aniversariantes do mês', ph:'Setor · dia'},
+  nascimentos:    {icon:'👶', label:'Nascimentos',   title:'',                       ph:'Ex.: filho(a) de Fulano · dia 3'},
+  casamentos:     {icon:'💍', label:'Casamentos',    title:'',                       ph:'Ex.: Fulano & Ciclana · dia 10'},
+  promocoes:      {icon:'📈', label:'Promoções',     title:'',                       ph:'Ex.: novo cargo · setor'}
+};
+function isPeopleType(t){return PEOPLE_META.hasOwnProperty(t);}
+
 var current = null;      // edição em edição
 var editingId = null;    // id do bloco sendo editado no modal
 var modalType = 'materia';
 var tempImage = '';      // foto principal temporária (modal)
 var tempGallery = [];    // galeria temporária [{src,cap}]
-var tempPeople = [];     // aniversariantes temporários
+var tempPeople = [];     // pessoas temporárias (aniversários/nascimentos/casamentos/promoções)
 var tempKpis = [];       // indicadores temporários
+var tempMatGallery = []; // galeria extra da matéria [{src,cap}]
 var saveTimer = null;
 
 /* atalhos DOM */
@@ -965,10 +992,10 @@ function blankIssue(month,year){
 }
 function newBlock(type){
   var b={id:uid(),type:type,category:CATEGORIES[0]};
-  if(type==='materia'){b.layout='full';b.title='';b.subtitle='';b.text='';b.image='';b.caption='';b.author='';b.date='';}
+  if(type==='materia'){b.layout='full';b.title='';b.subtitle='';b.text='';b.image='';b.caption='';b.gallery=[];b.author='';b.date='';}
   if(type==='galeria'){b.category='Eventos';b.title='';b.images=[];b.text='';}
   if(type==='frase'){b.category='Destaques';b.title='';b.quote='';b.quoteAuthor='';}
-  if(type==='aniversariantes'){b.category='Aniversariantes';b.title='Aniversariantes do mês';b.people=[];}
+  if(isPeopleType(type)){b.category=PEOPLE_META[type].label;b.title=PEOPLE_META[type].title;b.people=[];}
   if(type==='indicadores'){b.category='Destaques';b.title='Números do mês';b.kpis=[];}
   return b;
 }
@@ -1045,6 +1072,7 @@ function countPhotos(iss){
   iss.blocks.forEach(function(b){
     if(b.image)n++;
     if(b.images)n+=b.images.length;
+    if(b.gallery)n+=b.gallery.length;
     if(b.people)b.people.forEach(function(p){if(p.photo)n++});
   });
   return n;
@@ -1052,7 +1080,7 @@ function countPhotos(iss){
 function updateChrome(){
   $('dashTitle').textContent=MONTHS[current.month]+' / '+current.year;
   var mats=current.blocks.filter(function(b){return b.type==='materia'||b.type==='galeria'}).length;
-  var blks=current.blocks.filter(function(b){return b.type==='aniversariantes'||b.type==='indicadores'||b.type==='frase'}).length;
+  var blks=current.blocks.filter(function(b){return isPeopleType(b.type)||b.type==='indicadores'||b.type==='frase'}).length;
   $('stMatters').textContent=mats;
   $('stBlocks').textContent=blks;
   $('stPhotos').textContent=countPhotos(current);
@@ -1076,7 +1104,7 @@ function updateChrome(){
 function blockLabel(b){
   if(b.type==='galeria')return 'Galeria';
   if(b.type==='frase')return 'Frase';
-  if(b.type==='aniversariantes')return 'Aniversariantes';
+  if(isPeopleType(b.type))return PEOPLE_META[b.type].label;
   if(b.type==='indicadores')return 'Indicadores';
   return b.category||'Matéria';
 }
@@ -1084,7 +1112,7 @@ function renderMatterList(){
   var list=$('matterList');list.innerHTML='';
   if(!current.blocks.length){list.innerHTML='<div class="empty">Nenhuma matéria ainda. Clique em “Adicionar”.</div>';return}
   current.blocks.forEach(function(b,i){
-    var isBlk=(b.type==='aniversariantes'||b.type==='indicadores'||b.type==='frase');
+    var isBlk=(isPeopleType(b.type)||b.type==='indicadores'||b.type==='frase');
     var div=document.createElement('div');div.className='matter-item';div.draggable=!isLocked();div.dataset.i=i;
     var titleTxt=b.title|| (b.type==='frase'? (b.quote||'(frase)') : '(sem título)');
     div.innerHTML=
@@ -1145,12 +1173,13 @@ function showSections(type){
     subtitleField:(type==='materia'||type==='galeria'),
     textField:(type==='materia'||type==='galeria'),
     imageField:type==='materia',
+    materiaGalleryField:type==='materia',
     galleryField:type==='galeria',
     quoteField:type==='frase',
-    peopleField:type==='aniversariantes',
+    peopleField:isPeopleType(type),
     kpiField:type==='indicadores',
     metaRow:type==='materia',
-    rowCatLayout:true,
+    rowCatLayout:(type==='materia'||type==='galeria'),
     titleField:type!=='frase'
   };
   Object.keys(map).forEach(function(id){$(id).classList.toggle('hide',!map[id])});
@@ -1162,7 +1191,7 @@ function openModal(id){
   else{b=newBlock(modalType);editingId=null;}
   showSections(modalType);
   $('modalTitle').textContent=(id?'Editar ':'Novo ')+
-    ({materia:'matéria',galeria:'galeria',frase:'frase de destaque',aniversariantes:'bloco de aniversariantes',indicadores:'bloco de indicadores'}[modalType]);
+    ({materia:'matéria',galeria:'galeria',frase:'frase de destaque',aniversariantes:'bloco de aniversários',nascimentos:'bloco de nascimentos',casamentos:'bloco de casamentos',promocoes:'bloco de promoções',indicadores:'bloco de indicadores'}[modalType]);
   // categoria
   var custom=CATEGORIES.indexOf(b.category)<0 && b.category;
   $('mCategory').value=custom?'__custom':(b.category||CATEGORIES[0]);
@@ -1181,12 +1210,15 @@ function openModal(id){
   // imagem
   tempImage=b.image||'';setThumb('mThumbWrap','mThumb',tempImage);
   $('mCaption').value=b.caption||'';
+  // galeria extra da matéria
+  tempMatGallery=(b.gallery||[]).map(function(g){return typeof g==='string'?{src:g,cap:''}:{src:g.src,cap:g.cap||''}});
+  renderMatGalleryEdit();
   // galeria (migra formato antigo string -> {src,cap})
   tempGallery=(b.images||[]).map(function(g){return typeof g==='string'?{src:g,cap:''}:{src:g.src,cap:g.cap||''}});
   renderGalleryEdit();
   // pessoas
   tempPeople=(b.people||[]).map(function(p){return{name:p.name,info:p.info,photo:p.photo||''}});
-  if(!tempPeople.length&&modalType==='aniversariantes')tempPeople.push({name:'',info:'',photo:''});
+  if(!tempPeople.length&&isPeopleType(modalType))tempPeople.push({name:'',info:'',photo:''});
   renderPeopleRows();
   // kpis
   tempKpis=(b.kpis||[]).map(function(k){return{n:k.n,l:k.l}});
@@ -1195,7 +1227,7 @@ function openModal(id){
 
   $('modal').classList.add('open');
 }
-function closeModal(){$('modal').classList.remove('open');editingId=null;tempImage='';tempGallery=[];tempPeople=[];tempKpis=[];}
+function closeModal(){$('modal').classList.remove('open');editingId=null;tempImage='';tempGallery=[];tempPeople=[];tempKpis=[];tempMatGallery=[];}
 
 /* galeria no modal (com legenda por foto) */
 function renderGalleryEdit(){
@@ -1209,18 +1241,44 @@ function renderGalleryEdit(){
     g.appendChild(cell);
   });
 }
-/* pessoas no modal */
+/* pessoas no modal (com foto por pessoa) */
+function peoplePlaceholder(){return (PEOPLE_META[modalType]&&PEOPLE_META[modalType].ph)||'Setor · dia';}
 function renderPeopleRows(){
   var wrap=$('peopleRows');wrap.innerHTML='';
   tempPeople.forEach(function(p,i){
     var row=document.createElement('div');row.className='dynrow people-row';
-    row.innerHTML='<input placeholder="Nome" value="'+esc(p.name)+'" data-f="name">'
-      +'<input placeholder="Setor · dia" value="'+esc(p.info)+'" data-f="info">'
+    var avatar=p.photo
+      ? '<img class="pr-photo" src="'+p.photo+'" alt=""><i class="pr-clear" title="Remover foto">×</i>'
+      : '<span class="pr-photo ph">'+esc((p.name||'?').charAt(0)||'?')+'</span>';
+    row.innerHTML='<span class="pr-photo-wrap" title="Foto da pessoa">'+avatar+'</span>'
+      +'<input placeholder="Nome" value="'+esc(p.name)+'" data-f="name">'
+      +'<input placeholder="'+esc(peoplePlaceholder())+'" value="'+esc(p.info)+'" data-f="info">'
       +'<button class="del" title="Remover">✕</button>';
     row.querySelector('[data-f=name]').oninput=function(e){tempPeople[i].name=e.target.value};
     row.querySelector('[data-f=info]').oninput=function(e){tempPeople[i].info=e.target.value};
     row.querySelector('.del').onclick=function(){tempPeople.splice(i,1);renderPeopleRows()};
+    // escolher/trocar foto
+    var pick=row.querySelector('.pr-photo');
+    if(pick)pick.onclick=function(){
+      var inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+      inp.onchange=function(e){readImage(e.target.files[0],function(d){tempPeople[i].photo=d;renderPeopleRows();})};
+      inp.click();
+    };
+    var clr=row.querySelector('.pr-clear');
+    if(clr)clr.onclick=function(ev){ev.stopPropagation();tempPeople[i].photo='';renderPeopleRows();};
     wrap.appendChild(row);
+  });
+}
+/* galeria extra da matéria no modal */
+function renderMatGalleryEdit(){
+  var g=$('matGalleryEdit');if(!g)return;g.innerHTML='';
+  tempMatGallery.forEach(function(item,i){
+    var cell=document.createElement('div');cell.className='gcell';
+    cell.innerHTML='<img src="'+item.src+'"><button class="gdel" title="Remover">✕</button>'
+      +'<input type="text" placeholder="Legenda (opcional)" value="'+esc(item.cap)+'">';
+    cell.querySelector('.gdel').onclick=function(){tempMatGallery.splice(i,1);renderMatGalleryEdit()};
+    cell.querySelector('input').oninput=function(e){tempMatGallery[i].cap=e.target.value};
+    g.appendChild(cell);
   });
 }
 /* kpis no modal */
@@ -1239,13 +1297,16 @@ function renderKpiRows(){
 }
 /* salvar modal */
 function saveModal(){
-  var cat=$('mCategory').value==='__custom'?($('mCustomCat').value.trim()||'Outros'):$('mCategory').value;
   var b=editingId?current.blocks.find(function(x){return x.id===editingId}):newBlock(modalType);
-  b.category=cat;
+  // categoria só é editável em matéria/galeria; nos demais o tipo define a seção
+  if(modalType==='materia'||modalType==='galeria'){
+    b.category=$('mCategory').value==='__custom'?($('mCustomCat').value.trim()||'Outros'):$('mCategory').value;
+  }
   b.title=$('mTitle').value.trim();
   if(modalType==='materia'){
     b.layout=$('mLayout').value;b.subtitle=$('mSubtitle').value.trim();
     b.text=$('mText').innerHTML;b.image=tempImage;b.caption=$('mCaption').value.trim();
+    b.gallery=tempMatGallery.map(function(g){return{src:g.src,cap:(g.cap||'').trim()}});
     b.author=$('mAuthor').value.trim();b.date=$('mDate').value;
     if(!b.title){alert('Informe um título para a matéria.');return}
   }else if(modalType==='galeria'){
@@ -1255,8 +1316,8 @@ function saveModal(){
   }else if(modalType==='frase'){
     b.quote=$('mQuote').value.trim();b.quoteAuthor=$('mQuoteAuthor').value.trim();
     if(!b.quote){alert('Escreva a frase de destaque.');return}
-  }else if(modalType==='aniversariantes'){
-    b.people=tempPeople.filter(function(p){return p.name.trim()});
+  }else if(isPeopleType(modalType)){
+    b.people=tempPeople.filter(function(p){return p.name.trim()}).map(function(p){return{name:p.name.trim(),info:(p.info||'').trim(),photo:p.photo||''}});
     if(!b.people.length){alert('Adicione ao menos uma pessoa.');return}
   }else if(modalType==='indicadores'){
     b.kpis=tempKpis.filter(function(k){return k.n.trim()});
@@ -1280,7 +1341,7 @@ function articleHTML(b){
     return '<div class="art"><blockquote class="pullquote"><p>“'+esc(b.quote)+'”</p>'
       +(b.quoteAuthor?'<cite>— '+esc(b.quoteAuthor)+'</cite>':'')+'</blockquote></div>';
   }
-  if(b.type==='aniversariantes'){
+  if(isPeopleType(b.type)){
     var people=b.people.map(function(p){
       var av=p.photo?'<img src="'+p.photo+'" alt="'+esc(p.name)+'">':'<span class="ph">'+esc((p.name||'?').charAt(0))+'</span>';
       return '<div class="person">'+av+'<div><b>'+esc(p.name)+'</b><span>'+esc(p.info||'')+'</span></div></div>';
@@ -1307,15 +1368,20 @@ function articleHTML(b){
   var hero='<div class="media"><img class="hero" src="'+img+'" alt="'+esc(cap||b.title||'')+'" data-cap="'+esc(cap)+'">'
     +(cap?'<div class="cap">'+esc(cap)+'</div>':'')+'</div>';
   var meta=(b.author||b.date)?'<div class="meta">'+[esc(b.author||''),b.date?new Date(b.date+'T00:00').toLocaleDateString('pt-BR'):''].filter(Boolean).join(' · ')+'</div>':'';
+  // galeria extra da matéria (fotos adicionais da notícia)
+  var extra=(b.gallery&&b.gallery.length)?'<div class="gallery" style="margin-top:10px">'+b.gallery.map(function(g){
+    var gs=(typeof g==='string')?g:g.src, gc=(typeof g==='string')?'':(g.cap||'');
+    return '<figure><img src="'+gs+'" alt="'+esc(gc)+'" data-cap="'+esc(gc)+'">'+(gc?'<figcaption>'+esc(gc)+'</figcaption>':'')+'</figure>';
+  }).join('')+'</div>':'';
   var textBlock='<div class="body">'+catPill(b.category||'Raguife')
     +'<h3>'+esc(b.title||'')+'</h3>'
     +(b.subtitle?'<p class="subt">'+esc(b.subtitle)+'</p>':'')
-    +'<p class="txt">'+(b.text||'')+'</p>'+meta+'</div>';
+    +'<p class="txt">'+(b.text||'')+'</p>'+meta+extra+'</div>';
   var lay=b.layout||'full';
   if(lay==='textonly')return '<div class="art">'+catPill(b.category||'Raguife')+'<h3>'+esc(b.title||'')+'</h3>'
-    +(b.subtitle?'<p class="subt">'+esc(b.subtitle)+'</p>':'')+'<p class="txt">'+(b.text||'')+'</p>'+meta+'</div>';
+    +(b.subtitle?'<p class="subt">'+esc(b.subtitle)+'</p>':'')+'<p class="txt">'+(b.text||'')+'</p>'+meta+extra+'</div>';
   if(lay==='destaque')return '<div class="art destaque">'+catPill(b.category||'Raguife')+'<h3 style="margin-top:6px">'+esc(b.title||'')+'</h3>'
-    +(b.image?'<img class="hero" src="'+b.image+'" alt="'+esc(cap||b.title||'')+'" data-cap="'+esc(cap)+'" style="margin-top:10px">':'')+'<p class="txt">'+(b.text||'')+'</p>'+meta+'</div>';
+    +(b.image?'<img class="hero" src="'+b.image+'" alt="'+esc(cap||b.title||'')+'" data-cap="'+esc(cap)+'" style="margin-top:10px">':'')+'<p class="txt">'+(b.text||'')+'</p>'+meta+extra+'</div>';
   if(lay==='split-left')return '<div class="art split">'+hero+textBlock+'</div>';
   if(lay==='split-right')return '<div class="art split right">'+hero+textBlock+'</div>';
   // full
@@ -1324,7 +1390,7 @@ function articleHTML(b){
     +'<div style="margin-top:8px">'+catPill(b.category||'Raguife')+'</div>'
     +'<h3>'+esc(b.title||'')+'</h3>'
     +(b.subtitle?'<p class="subt">'+esc(b.subtitle)+'</p>':'')
-    +'<p class="txt">'+(b.text||'')+'</p>'+meta+'</div>';
+    +'<p class="txt">'+(b.text||'')+'</p>'+meta+extra+'</div>';
 }
 /* agrupa blocos por categoria em seções, com faixa alternada e âncora p/ índice */
 function sectionsHTML(){
@@ -1576,6 +1642,10 @@ function wire(){
   $('mGalleryInput').addEventListener('change',function(e){
     var files=Array.prototype.slice.call(e.target.files);
     files.forEach(function(f){readImage(f,function(d){tempGallery.push({src:d,cap:''});renderGalleryEdit();})});
+    e.target.value='';});
+  $('mMatGalleryInput').addEventListener('change',function(e){
+    var files=Array.prototype.slice.call(e.target.files);
+    files.forEach(function(f){readImage(f,function(d){tempMatGallery.push({src:d,cap:''});renderMatGalleryEdit();})});
     e.target.value='';});
   $('addPerson').onclick=function(){tempPeople.push({name:'',info:'',photo:''});renderPeopleRows()};
   $('addKpi').onclick=function(){tempKpis.push({n:'',l:''});renderKpiRows()};
