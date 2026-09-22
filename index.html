@@ -383,7 +383,6 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
      ===================================================================== -->
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 <div class="app">
@@ -626,7 +625,8 @@ function logoHTML(size){
    Enquanto os campos estiverem "COLE_AQUI", o sistema funciona salvando
    NESTE NAVEGADOR (localStorage), exatamente como a versão anterior —
    nada quebra. Assim que você colar a config real, ele passa
-   automaticamente a salvar no Firestore e as fotos no Storage.
+   automaticamente a salvar no Firestore (dados e fotos comprimidas, sem
+   precisar do plano pago/Storage).
    ===================================================================== */
 var FIREBASE_CONFIG = {
   apiKey:            "AIzaSyAHpicT7tAoSrutIqLk6Tzi8VMKZD1qZII",
@@ -640,8 +640,9 @@ var FIREBASE_CONFIG = {
 var FB_COLLECTION = 'edicoes';   // nome da coleção no Firestore
 
 var FB_READY = false;            // vira true quando o Firebase conecta
-var db = null, storage = null;
-var _cache = {};                 // espelho em memória das edições (modo nuvem)
+var db = null;
+var _cache = {};                 // espelho em memória das edições (metadados, SEM imagens)
+var _savedImgs = {};             // ids de imagens já gravadas nesta sessão (evita reescrever)
 
 function firebaseConfigured(){
   return FIREBASE_CONFIG && typeof FIREBASE_CONFIG.apiKey === 'string'
@@ -654,7 +655,6 @@ function initFirebase(){
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
-    storage = firebase.storage();
     return true;
   }catch(e){ console.warn('Firebase indisponível, usando localStorage:', e); return false; }
 }
@@ -667,11 +667,100 @@ function loadAllFromFirestore(){
     toast('⚠️ Não foi possível ler do Firebase');
   });
 }
-function fbSaveIssue(key,issue){
-  return db.collection(FB_COLLECTION).doc(key).set(JSON.parse(JSON.stringify(issue)));
+/* ---- IMAGENS EMBUTIDAS, SEM STORAGE (sem plano pago) ----
+   Cada foto vira um documento na subcoleção  edicoes/{mes}/imagens/{id}.
+   O documento da edição guarda só referências "img::id" no lugar do base64,
+   assim NENHUM documento passa do limite de 1 MB do Firestore. */
+function imgHash(dataUrl){
+  var h=5381; for(var i=0;i<dataUrl.length;i++){h=((h<<5)+h+dataUrl.charCodeAt(i))|0;}
+  return (h>>>0).toString(16)+'-'+dataUrl.length.toString(16);
 }
+function isBase64(v){return typeof v==='string' && v.indexOf('data:')===0;}
+function isRef(v){return typeof v==='string' && v.indexOf('img::')===0;}
+/* troca todo base64 por referência e coleta as fotos em "bag" */
+function stripImages(issue,bag){
+  var c=JSON.parse(JSON.stringify(issue));
+  function take(v){ if(!isBase64(v))return v; var id=imgHash(v); bag[id]=v; return 'img::'+id; }
+  c.coverImage=take(c.coverImage);
+  (c.blocks||[]).forEach(function(b){
+    if(b.image)b.image=take(b.image);
+    if(b.images)b.images.forEach(function(g){ if(g&&g.src)g.src=take(g.src); });
+    if(b.people)b.people.forEach(function(p){ if(p&&p.photo)p.photo=take(p.photo); });
+  });
+  return c;
+}
+/* volta as referências para base64 usando o mapa de imagens carregado */
+function hydrate(issue,imgs){
+  function put(v){ return isRef(v)?(imgs[v.slice(5)]||''):v; }
+  issue.coverImage=put(issue.coverImage);
+  (issue.blocks||[]).forEach(function(b){
+    if(b.image)b.image=put(b.image);
+    if(b.images)b.images.forEach(function(g){ if(g)g.src=put(g.src); });
+    if(b.people)b.people.forEach(function(p){ if(p)p.photo=put(p.photo); });
+  });
+  return issue;
+}
+/* grava a edição: primeiro as imagens novas, depois o documento com as referências */
+function saveIssueFB(issue){
+  var key=keyOf(issue);
+  var bag={};
+  var stripped=stripImages(issue,bag);
+  _cache[key]=stripped;                       // metadados no cache (histórico reflete na hora)
+  var pend=Object.keys(bag).filter(function(id){return !_savedImgs[id];});
+  var writes=pend.map(function(id){
+    return db.collection(FB_COLLECTION).doc(key).collection('imagens').doc(id)
+      .set({data:bag[id]}).then(function(){_savedImgs[id]=true;});
+  });
+  return Promise.all(writes).then(function(){
+    return db.collection(FB_COLLECTION).doc(key).set(stripped);
+  });
+}
+/* busca a edição + suas imagens e devolve já com base64 embutido */
+function fbLoadIssue(key){
+  return Promise.all([
+    db.collection(FB_COLLECTION).doc(key).get(),
+    db.collection(FB_COLLECTION).doc(key).collection('imagens').get()
+  ]).then(function(res){
+    var doc=res[0]; if(!doc.exists)return null;
+    var imgs={}; res[1].forEach(function(d){ imgs[d.id]=d.data().data; _savedImgs[d.id]=true; });
+    return hydrate(doc.data(),imgs);
+  });
+}
+/* exclui a edição e TODAS as suas imagens */
 function fbDeleteIssue(key){
-  return db.collection(FB_COLLECTION).doc(key).delete();
+  var col=db.collection(FB_COLLECTION).doc(key).collection('imagens');
+  return col.get().then(function(s){
+    var b=db.batch();
+    s.forEach(function(d){b.delete(d.ref)});
+    b.delete(db.collection(FB_COLLECTION).doc(key));
+    return b.commit();
+  });
+}
+/* compressão de imagem no navegador — reduz dimensão e qualidade para caber
+   folgado no limite de 1 MB por documento (e aliviar também o modo local) */
+function compressImage(file,cb){
+  var img=new Image(); var url=URL.createObjectURL(file);
+  img.onload=function(){
+    URL.revokeObjectURL(url);
+    var maxDim=1400, w=img.width, h=img.height;
+    if(w>=h && w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;}
+    else if(h>w && h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;}
+    var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+    var ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+    var q=0.72, out=cv.toDataURL('image/jpeg',q), budget=850*1024, g=0;
+    while(out.length>budget && q>0.4 && g<6){ q-=0.1; out=cv.toDataURL('image/jpeg',q); g++; }
+    if(out.length>budget){                    // ainda grande? reduz dimensão
+      var g2=0;
+      while(out.length>budget && g2<4){
+        w=Math.round(w*0.82); h=Math.round(h*0.82);
+        cv.width=w; cv.height=h; ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h);
+        out=cv.toDataURL('image/jpeg',0.6); g2++;
+      }
+    }
+    cb(out);
+  };
+  img.onerror=function(){ URL.revokeObjectURL(url); toast('⚠️ Não foi possível ler a imagem'); };
+  img.src=url;
 }
 /* reflete o modo atual (nuvem/local) nos textos da interface */
 function updateStorageNote(){
@@ -682,12 +771,10 @@ function updateStorageNote(){
   }
   var s=$('storeNote');
   if(s) s.innerHTML = FB_READY
-    ? 'Jornal Raguife · v2 · dados salvos na nuvem (Firebase) ☁️'
+    ? 'Jornal Raguife · v2 · dados e fotos na nuvem (Firestore) ☁️'
     : 'Jornal Raguife · v2 · dados salvos neste navegador';
   var e=$('exportNote');
-  if(e) e.innerHTML = FB_READY
-    ? 'O <b>jornal final</b> é um arquivo <b>.html</b> leve: as fotos ficam hospedadas no Firebase Storage e o arquivo guarda apenas o link de cada uma. Abre em qualquer navegador <b>com internet</b> e pode ser hospedado ou enviado por link.'
-    : 'O <b>jornal final</b> é um arquivo <b>.html</b> independente, com todas as fotos embutidas. Abre em qualquer navegador e pode ser hospedado internamente, no GitHub Pages ou (futuramente) no Firebase Hosting.';
+  if(e) e.innerHTML = 'O <b>jornal final</b> é um arquivo <b>.html</b> independente, com todas as fotos embutidas (comprimidas). Abre em qualquer navegador, inclusive sem internet, e pode ser hospedado no GitHub Pages ou enviado por e-mail.';
 }
 
 /* =====================================================================
@@ -752,22 +839,8 @@ function fmtDate(iso){if(!iso)return '—';var d=new Date(iso);
    --------------------------------------------------------------------- */
 function readImage(file,cb){
   if(!file)return;
-  if(file.size>6*1024*1024 && !confirm('Esta imagem tem mais de 6 MB e pode demorar no upload. Continuar?'))return;
-  if(FB_READY){
-    var safe=(file.name||'foto').replace(/[^\w.\-]+/g,'_');
-    var path='imagens/'+(current?keyOf(current):'geral')+'/'+uid()+'-'+safe;
-    var ref=storage.ref().child(path);
-    toast('Enviando foto…');
-    ref.put(file).then(function(snap){return snap.ref.getDownloadURL();})
-      .then(function(url){cb(url);toast('Foto enviada ☁️');})
-      .catch(function(e){
-        console.warn('Upload falhou, usando modo local para esta foto:', e);
-        toast('⚠️ Upload falhou; foto salva localmente');
-        var r=new FileReader();r.onload=function(){cb(r.result)};r.readAsDataURL(file);
-      });
-  }else{
-    var r=new FileReader();r.onload=function(){cb(r.result)};r.readAsDataURL(file);
-  }
+  if(file.type && file.type.indexOf('image/')!==0){ toast('⚠️ Selecione um arquivo de imagem'); return; }
+  compressImage(file,function(dataUrl){ cb(dataUrl); });
 }
 function isLocked(){return current && current.status==='Publicado';}
 
@@ -804,12 +877,11 @@ function persist(silent){
   var key=keyOf(current);
   var snap=JSON.parse(JSON.stringify(current));
   if(FB_READY){
-    _cache[key]=snap;
-    renderHistory();          // otimista: reflete na hora
     flagSaving();
-    fbSaveIssue(key,snap)
-      .then(function(){ if(!silent)toast('Edição salva na nuvem ☁️'); flagSaved(); })
+    saveIssueFB(current)               // strip + grava imagens novas + documento
+      .then(function(){ if(!silent)toast('Edição salva na nuvem ☁️'); renderHistory(); flagSaved(); })
       .catch(function(e){ console.warn(e); toast('⚠️ Falha ao salvar na nuvem'); flagSaved(); });
+    renderHistory();                   // otimista (usa _cache já atualizado por saveIssueFB)
     return;
   }
   var all=loadAll();
@@ -828,13 +900,24 @@ function flagSaving(){var s=$('saveInd');s.classList.add('saving');$('saveTxt').
 function flagSaved(){var s=$('saveInd');s.classList.remove('saving');$('saveTxt').textContent='Salvo';}
 
 /* backup / restauração (proteção contra perda de dados) */
-function doBackup(){
-  var data=loadAll();
+function downloadJson(data){
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   var url=URL.createObjectURL(blob);var a=document.createElement('a');
   a.href=url;a.download='backup-jornal-raguife-'+new Date().toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1500);
   toast('Backup gerado ✓');
+}
+function doBackup(){
+  if(FB_READY){
+    toast('Preparando backup (baixando fotos)…');
+    var keys=Object.keys(_cache);
+    Promise.all(keys.map(function(k){return fbLoadIssue(k);})).then(function(list){
+      var data={};list.forEach(function(iss){ if(iss)data[keyOf(iss)]=iss; });
+      downloadJson(data);
+    }).catch(function(e){console.warn(e);toast('⚠️ Erro ao gerar backup');});
+    return;
+  }
+  downloadJson(loadAll());
 }
 function doRestore(){
   var inp=document.createElement('input');inp.type='file';inp.accept='application/json,.json';
@@ -847,12 +930,9 @@ function doRestore(){
         if(typeof data!=='object')throw 0;
         if(!confirm('Restaurar este backup? As edições atuais serão substituídas pelas do arquivo.'))return;
         if(FB_READY){
-          var batch=db.batch();
-          Object.keys(data).forEach(function(k){
-            batch.set(db.collection(FB_COLLECTION).doc(k), JSON.parse(JSON.stringify(data[k])));
-          });
           toast('Restaurando na nuvem…');
-          batch.commit()
+          _savedImgs={};
+          Promise.all(Object.keys(data).map(function(k){return saveIssueFB(data[k]);}))
             .then(function(){boot();toast('Backup restaurado ✓');})
             .catch(function(err){console.warn(err);alert('Falha ao restaurar na nuvem.');});
         }else{
@@ -1351,6 +1431,14 @@ function renderHistory(){
   });
 }
 function openIssue(k){
+  if(FB_READY){
+    toast('Abrindo edição…');
+    fbLoadIssue(k).then(function(iss){
+      if(!iss){toast('Edição não encontrada');return;}
+      current=iss; syncToForm(); refresh(); toast('Edição aberta');
+    }).catch(function(e){console.warn(e);toast('⚠️ Erro ao abrir edição');});
+    return;
+  }
   var all=loadAll();if(!all[k])return;
   current=JSON.parse(JSON.stringify(all[k]));
   syncToForm();refresh();toast('Edição aberta');
@@ -1529,23 +1617,35 @@ function bumpText(d){
 /* =====================================================================
    14. BOOT — inicializa Firebase (se configurado) e carrega as edições
    ===================================================================== */
-function proceedBoot(){
-  var all=loadAll();
-  var keys=Object.keys(all).sort().reverse();
-  if(keys.length){
-    current=JSON.parse(JSON.stringify(all[keys[0]]));
-  }else{
-    current=demoIssue();
-    var key=keyOf(current);
-    if(FB_READY){
-      _cache[key]=JSON.parse(JSON.stringify(current));
-      fbSaveIssue(key,current).catch(function(e){console.warn(e)});
-    }else{
-      var a=loadAll();a[key]=JSON.parse(JSON.stringify(current));saveAll(a);
-    }
-  }
+function finishBootRender(){
   syncToForm();
   renderMatterList();renderReader();updateChrome();renderHistory();flagSaved();
+}
+function proceedBootLocal(){
+  var all=loadAll();
+  var keys=Object.keys(all).sort().reverse();
+  if(keys.length){ current=JSON.parse(JSON.stringify(all[keys[0]])); }
+  else{
+    current=demoIssue();
+    var a=loadAll();a[keyOf(current)]=JSON.parse(JSON.stringify(current));saveAll(a);
+  }
+  finishBootRender();
+}
+function proceedBootFB(){
+  var keys=Object.keys(_cache).sort().reverse();
+  if(keys.length){
+    fbLoadIssue(keys[0]).then(function(iss){
+      current = iss || demoIssue();
+      finishBootRender();
+    }).catch(function(e){
+      console.warn(e);
+      current=hydrate(JSON.parse(JSON.stringify(_cache[keys[0]])),{});
+      finishBootRender();
+    });
+  }else{
+    current=demoIssue();
+    saveIssueFB(current).then(finishBootRender).catch(function(e){console.warn(e);finishBootRender();});
+  }
 }
 function boot(){
   initMonthSelect();
@@ -1555,9 +1655,9 @@ function boot(){
   updateStorageNote();
   if(FB_READY){
     toast('Conectando ao Firebase…');
-    loadAllFromFirestore().then(proceedBoot);
+    loadAllFromFirestore().then(proceedBootFB).catch(function(e){console.warn(e);proceedBootFB();});
   }else{
-    proceedBoot();
+    proceedBootLocal();
   }
 }
 boot();
