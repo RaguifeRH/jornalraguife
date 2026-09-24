@@ -401,6 +401,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
 .fb-blocked .editor>*:not(.fb-err):not(.topbar){display:none!important}
 .fb-blocked .stage{opacity:.25;pointer-events:none}
 
+/* ---------- PROGRESSO (restauração) ---------- */
+.busy{position:fixed;inset:0;background:rgba(6,28,17,.6);display:none;align-items:center;justify-content:center;z-index:90;padding:20px}
+.busy.open{display:flex}
+.busy-card{background:#fff;border-radius:18px;padding:24px 22px;max-width:380px;text-align:center;font-weight:700;color:var(--green);line-height:1.5;box-shadow:0 30px 90px rgba(0,0,0,.3)}
+.spin{width:38px;height:38px;border-radius:50%;border:4px solid #e4f2e6;border-top-color:var(--green);margin:0 auto 14px;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width:980px){
   .app{grid-template-columns:1fr}
@@ -723,6 +730,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
     </div>
   </div>
 </div>
+
+<div class="busy" id="busy"><div class="busy-card"><div class="spin"></div><div id="busyTxt"></div></div></div>
 
 <div class="lightbox" id="lightbox">
   <button class="lb-close" id="lbClose">✕</button>
@@ -1117,11 +1126,10 @@ function doRestore(){
         if(typeof data!=='object')throw 0;
         if(!confirm('Restaurar este backup? As edições atuais serão substituídas pelas do arquivo.'))return;
         if(FB_READY){
-          toast('Restaurando na nuvem…');
-          _savedImgs={};
-          Promise.all(Object.keys(data).map(function(k){return saveIssueFB(data[k]);}))
-            .then(function(){reload();toast('Backup restaurado ✓');})
-            .catch(function(err){console.warn(err);alert('Falha ao restaurar na nuvem.');});
+          restoreToCloud(data)
+            .then(function(){ busy(''); alert('✓ Backup restaurado!\n\nA página vai recarregar agora.'); location.reload(); })
+            .catch(function(err){ console.warn(err); busy('');
+              alert('❌ A restauração NÃO terminou.\n\nErro: '+((err&&(err.code||err.message))||err)+'\n\nNada foi perdido. Tente de novo; as fotos que já subiram não são enviadas outra vez.'); });
         }else{
           if(!saveAll(data))return;
           reload();toast('Backup restaurado ✓');
@@ -1131,6 +1139,38 @@ function doRestore(){
     r.readAsText(f);
   };
   inp.click();
+}
+/* aviso de progresso em tela cheia (restauração) */
+function busy(txt){
+  var b=$('busy'); if(!txt){ b.classList.remove('open'); window.onbeforeunload=null; return; }
+  $('busyTxt').textContent=txt; b.classList.add('open');
+  window.onbeforeunload=function(){return 'A restauração ainda está em andamento.';};
+}
+/* restaura: aproveita fotos que já estão na nuvem, envia só as que faltam (3 por vez), grava a edição por último */
+function restoreToCloud(data){
+  var keys=Object.keys(data), total=0, done=0;
+  busy('Preparando a restauração…');
+  return keys.reduce(function(chain,k){ return chain.then(function(){
+    var col=db.collection(FB_COLLECTION).doc(k).collection('imagens');
+    return col.get().then(function(s){ s.forEach(function(d){_savedImgs[d.id]=true;}); }, function(e){ console.warn('não listou fotos existentes',e); })
+    .then(function(){
+      var bag={}, stripped=stripImages(data[k],bag);
+      var pend=Object.keys(bag).filter(function(id){return !_savedImgs[id];});
+      total+=pend.length; var i=0;
+      busy('Edição '+k+': '+(Object.keys(bag).length-pend.length)+' fotos já estavam na nuvem. Enviando '+pend.length+'…');
+      function worker(){
+        if(i>=pend.length) return Promise.resolve();
+        var id=pend[i++];
+        return col.doc(id).set({data:bag[id]}).then(function(){ _savedImgs[id]=true; done++;
+          busy('Enviando fotos: '+done+' de '+total+'… não feche esta página.'); }).then(worker);
+      }
+      return Promise.all([worker(),worker(),worker()]).then(function(){
+        busy('Salvando a edição '+k+'…');
+        _dropOk[k]=true; _cache[k]=stripped;
+        return db.collection(FB_COLLECTION).doc(k).set(stripped);
+      });
+    });
+  }); }, Promise.resolve());
 }
 function backupMenu(){
   if(confirm('BACKUP / RESTAURAR\n\nOK = Gerar backup (baixar arquivo .json)\nCancelar = Restaurar de um arquivo')) doBackup();
