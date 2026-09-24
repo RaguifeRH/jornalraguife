@@ -369,6 +369,12 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
 .rowset{display:flex;flex-direction:column;gap:8px}
 .dynrow{display:grid;gap:6px;align-items:center;background:var(--soft);border-radius:10px;padding:8px}
 .dynrow.people-row{grid-template-columns:auto 1fr 1fr auto}
+.auth-chk{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:2px 0 0;font-size:12px;font-weight:700;color:var(--danger);background:#fbeeee;border-radius:8px;padding:7px 9px;cursor:pointer}
+.auth-chk input{width:auto;margin:0}
+.auth-chk.ok{color:var(--green);background:#e4f2e6}
+.auth-hint{font-size:11.5px;line-height:1.5;background:#fbf1dd;color:#7a5410;border-radius:10px;padding:9px 11px;margin:0 0 9px}
+.mh-meta .tag2.warn{background:#faeaea;color:var(--danger);margin-left:4px}
+.mh-meta .tag2.okk{background:#e4f2e6;color:var(--green);margin-left:4px}
 .dynrow.kpi-row{grid-template-columns:90px 1fr auto}
 .dynrow.quote-row{grid-template-columns:auto 1fr auto;align-items:start}
 .dynrow.quote-row textarea{min-height:64px;padding:8px 9px}
@@ -671,6 +677,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
     <div id="peopleField" class="hide field">
       <label id="peopleLbl">Pessoas</label>
       <div class="hint">Toque no círculo para colocar a foto.</div>
+      <div class="auth-hint hide" id="authHint">🔒 <b>LGPD:</b> só publique depois de receber o <b>Termo de Autorização de Uso de Imagem</b> assinado pelo responsável (pai, mãe ou cônjuges). Marque a caixinha de cada pessoa quando o termo chegar e guarde o termo no RH.</div>
       <div class="rowset" id="peopleRows"></div>
       <button type="button" class="btn ghost block mt" id="addPerson">＋ Adicionar pessoa</button>
     </div>
@@ -920,6 +927,14 @@ var PEOPLE_META = {
   promocoes:      {icon:'📈', label:'Promoções',     title:'',                       ph:'Ex.: novo cargo · setor',         style:'list',  name:'lista de promoções'}
 };
 function isPeopleType(t){return PEOPLE_META.hasOwnProperty(t);}
+/* nascimentos e casamentos exigem Termo de Autorização assinado para cada pessoa */
+function needsAuth(t){return t==='nascimentos'||t==='casamentos';}
+function missingAuth(iss){
+  var out=[];
+  (iss.blocks||[]).forEach(function(b){ if(!needsAuth(b.type))return;
+    (b.people||[]).forEach(function(p){ if(!p.auth)out.push({name:p.name,sec:b.category||PEOPLE_META[b.type].label}); }); });
+  return out;
+}
 
 var current = null;
 var editingId = null;
@@ -1195,7 +1210,10 @@ function renderMatterList(){
       '<div class="matter-head"><div class="mh-left">'
       +'<span class="drag-handle" title="Arraste para reordenar">⠿</span>'
       +'<div class="mh-meta"><strong>'+esc(titleTxt)+'</strong>'
-      +'<span class="tag2'+(isCult?' cult':isBlk?' blk':'')+'">'+esc(blockLabel(b))+'</span></div></div>'
+      +'<span class="tag2'+(isCult?' cult':isBlk?' blk':'')+'">'+esc(blockLabel(b))+'</span>'
+      +(needsAuth(b.type)?(function(){var n=(b.people||[]).filter(function(p){return !p.auth}).length;
+        return n?'<span class="tag2 warn">⚠️ '+n+' sem autorização</span>':'<span class="tag2 okk">✓ autorizado</span>';})():'')
+      +'</div></div>'
       +'<div class="mini">'
       +'<button class="icon-btn" data-a="edit" title="Editar">✎</button>'
       +'<button class="icon-btn" data-a="up" title="Subir">↑</button>'
@@ -1266,6 +1284,7 @@ function showSections(type){
   $('mText').setAttribute('data-ph',cult?'O que o setor faz no dia a dia e por que isso é importante...':'Escreva o texto...');
   $('mImgLbl').textContent=cult?'📷 Foto principal do setor':'📷 Foto principal';
   $('mMatGalLbl').textContent=cult?'🖼️ Fotos do setor e da equipe (várias)':'🖼️ Fotos extras da matéria (galeria)';
+  $('authHint').classList.toggle('hide',!needsAuth(type));
   $('peopleLbl').textContent=cult?'👥 Equipe do setor (foto, nome e função)':'Pessoas (foto, nome e detalhe)';
 }
 function openModal(id){
@@ -1296,7 +1315,7 @@ function openModal(id){
   renderMatGalleryEdit();
   tempGallery=(b.images||[]).map(function(g){return typeof g==='string'?{src:g,cap:''}:{src:g.src,cap:g.cap||''}});
   renderGalleryEdit();
-  tempPeople=(b.people||[]).map(function(p){return{name:p.name,info:p.info,photo:p.photo||''}});
+  tempPeople=(b.people||[]).map(function(p){return{name:p.name,info:p.info,photo:p.photo||'',auth:!!p.auth}});
   if(!tempPeople.length&&(isPeopleType(modalType)||modalType==='cultura'))tempPeople.push({name:'',info:'',photo:''});
   renderPeopleRows();
   tempQuotes=(b.quotes||[]).map(function(q){return{text:q.text||'',name:q.name||'',role:q.role||'',photo:q.photo||''}});
@@ -1337,7 +1356,10 @@ function renderPeopleRows(){
     row.innerHTML='<span class="pr-photo-wrap">'+avatarEditHTML(p.photo,p.name)+'</span>'
       +'<input placeholder="Nome" value="'+esc(p.name)+'" data-f="name">'
       +'<input placeholder="'+esc(peoplePlaceholder())+'" value="'+esc(p.info)+'" data-f="info">'
-      +'<button class="del" title="Remover">✕</button>';
+      +'<button class="del" title="Remover">✕</button>'
+      +(needsAuth(modalType)?'<label class="auth-chk'+(p.auth?' ok':'')+'"><input type="checkbox" data-f="auth"'+(p.auth?' checked':'')+'> 📄 Termo de Autorização assinado recebido</label>':'');
+    var ac=row.querySelector('[data-f=auth]');
+    if(ac)ac.onchange=function(e){tempPeople[i].auth=e.target.checked;e.target.parentNode.classList.toggle('ok',e.target.checked)};
     row.querySelector('[data-f=name]').oninput=function(e){tempPeople[i].name=e.target.value};
     row.querySelector('[data-f=info]').oninput=function(e){tempPeople[i].info=e.target.value};
     row.querySelector('.del').onclick=function(){tempPeople.splice(i,1);renderPeopleRows()};
@@ -1422,8 +1444,10 @@ function saveModal(){
     b.category=sec||PEOPLE_META[modalType].label;
     b.subtitle=$('mSubtitle').value.trim();
     b.style=$('mPeopleStyle').value;
-    b.people=tempPeople.filter(function(p){return (p.name||'').trim()}).map(function(p){return{name:p.name.trim(),info:(p.info||'').trim(),photo:p.photo||''}});
+    b.people=tempPeople.filter(function(p){return (p.name||'').trim()}).map(function(p){var o={name:p.name.trim(),info:(p.info||'').trim(),photo:p.photo||''};if(needsAuth(modalType))o.auth=!!p.auth;return o;});
     if(!b.people.length){alert('Adicione ao menos uma pessoa.');return}
+    if(needsAuth(modalType)){var semAut=b.people.filter(function(p){return !p.auth}).map(function(p){return '• '+p.name});
+      if(semAut.length)alert('Salvo, mas atenção: falta o Termo de Autorização de:\n\n'+semAut.join('\n')+'\n\nA edição só pode ser publicada depois que todos estiverem marcados como autorizados.');}
   }else if(modalType==='indicadores'){
     b.kpis=tempKpis.filter(function(k){return k.n.trim()});
     if(!b.kpis.length){alert('Adicione ao menos um indicador.');return}
@@ -1571,7 +1595,7 @@ function fixedBlocksHTML(){
     +'<div class="fx-ico">💬</div><div class="fx-body">'
     +'<div class="fx-kick">Participe do jornal</div>'
     +'<h3>Teve bebê ou se casou?</h3>'
-    +'<p>Conte para a gente! Envie a notícia e a foto para o WhatsApp do RH <b>até o dia 30 de cada mês</b> para aparecer na próxima edição.</p>'
+    +'<p>Conte para a gente! Envie a notícia, a foto e o <b>Termo de Autorização assinado</b> (peça o modelo ao RH) para o WhatsApp do RH <b>até o dia 30 de cada mês</b> para aparecer na próxima edição.</p>'
     +'<a class="fx-btn wa" href="'+wa+'" target="_blank" rel="noopener">WhatsApp do RH · '+RH_WHATS_TXT+'</a>'
     +'</div></section>';
 }
@@ -1687,6 +1711,10 @@ function setStatus(s){current.status=s;persist(true);refresh();}
 function publish(){
   syncFromForm();
   if(!current.title){alert('Defina o título da capa antes de publicar.');return}
+  var semAut=missingAuth(current);
+  if(semAut.length){alert('🔒 Não é possível publicar ainda.\n\nFalta o Termo de Autorização assinado de:\n\n'
+    +semAut.map(function(x){return '• '+x.name+' ('+x.sec+')'}).join('\n')
+    +'\n\nQuando o termo chegar, abra o bloco, marque a caixinha da pessoa e publique de novo. Se não houver autorização, remova a pessoa do bloco.');return}
   if(!confirm('Publicar a edição de '+MONTHS[current.month]+'/'+current.year+'?\n\nEla passa a aparecer no link dos funcionários e fica travada contra edições acidentais (você pode reabrir).'))return;
   current.status='Publicado';current.publishedAt=new Date().toISOString();current.publishDate=current.publishedAt;
   persist(true);refresh();
