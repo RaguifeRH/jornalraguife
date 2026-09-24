@@ -408,6 +408,27 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
 .spin{width:38px;height:38px;border-radius:50%;border:4px solid #e4f2e6;border-top-color:var(--green);margin:0 auto 14px;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---------- NASCIMENTOS / CASAMENTOS: card com galeria ---------- */
+.albums{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:6px}
+.album{background:#fff;border:1px solid #e3edd6;border-radius:18px;overflow:hidden;box-shadow:0 6px 18px rgba(2,79,43,.07)}
+.album-pics{display:grid;gap:3px;background:#e3edd6}
+.album-pics img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;aspect-ratio:1}
+.album-pics.n1 img{aspect-ratio:4/3}
+.album-pics.n2{grid-template-columns:1fr 1fr}
+.album-pics.n3{grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr}
+.album-pics.n3 img:first-child{grid-row:1/3;aspect-ratio:auto}
+.album-pics.n4{grid-template-columns:1fr 1fr}
+.album-pics.n0{aspect-ratio:4/3;display:grid;place-items:center;background:#f3f8ee}
+.album-pics.n0 .ph{width:84px;height:84px;border-radius:50%;background:var(--lime);color:#fff;display:grid;place-items:center;font-weight:800;font-size:30px}
+.album-txt{padding:12px 14px 14px}
+.album-txt b{display:block;font-size:15px;color:var(--green);line-height:1.3}
+.album-txt span{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.extra-strip{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.extra-strip .ex{position:relative}
+.extra-strip img{width:46px;height:46px;border-radius:8px;object-fit:cover;border:1px solid var(--line)}
+.extra-strip i{position:absolute;top:-5px;right:-5px;background:var(--danger);color:#fff;border-radius:50%;width:17px;height:17px;display:grid;place-items:center;font-size:11px;cursor:pointer;font-style:normal}
+.ex-add{border:1.5px dashed #b6c3b8;background:#fbfdfb;border-radius:8px;height:46px;padding:0 10px;font-size:12px;font-weight:700;color:#425049;cursor:pointer}
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width:980px){
   .app{grid-template-columns:1fr}
@@ -697,7 +718,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
 
     <div id="peopleField" class="hide field">
       <label id="peopleLbl">Pessoas</label>
-      <div class="hint">Toque no círculo para colocar a foto.</div>
+      <div class="hint">Toque no círculo para colocar a foto. Em nascimentos e casamentos, use “＋ Mais fotos” para colocar várias.</div>
       <div class="auth-hint hide" id="authHint">🔒 <b>LGPD:</b> só publique depois de receber o <b>Termo de Autorização de Uso de Imagem</b> assinado pelo responsável (pai, mãe ou cônjuges). Marque a caixinha de cada pessoa quando o termo chegar e guarde o termo no RH.</div>
       <div class="rowset" id="peopleRows"></div>
       <button type="button" class="btn ghost block mt" id="addPerson">＋ Adicionar pessoa</button>
@@ -851,7 +872,7 @@ function stripImages(issue,bag){
     if(b.image)b.image=take(b.image);
     if(b.images)b.images.forEach(function(g){ if(g&&g.src)g.src=take(g.src); });
     if(b.gallery)b.gallery.forEach(function(g){ if(g&&g.src)g.src=take(g.src); });
-    if(b.people)b.people.forEach(function(p){ if(p&&p.photo)p.photo=take(p.photo); });
+    if(b.people)b.people.forEach(function(p){ if(p&&p.photo)p.photo=take(p.photo); if(p&&p.extra)p.extra=p.extra.map(take); });
     if(b.quotes)b.quotes.forEach(function(q){ if(q&&q.photo)q.photo=take(q.photo); });
   });
   return c;
@@ -863,7 +884,7 @@ function hydrate(issue,imgs){
     if(b.image)b.image=put(b.image);
     if(b.images)b.images.forEach(function(g){ if(g)g.src=put(g.src); });
     if(b.gallery)b.gallery.forEach(function(g){ if(g)g.src=put(g.src); });
-    if(b.people)b.people.forEach(function(p){ if(p)p.photo=put(p.photo); });
+    if(b.people)b.people.forEach(function(p){ if(p){p.photo=put(p.photo); if(p.extra)p.extra=p.extra.map(put);} });
     if(b.quotes)b.quotes.forEach(function(q){ if(q)q.photo=put(q.photo); });
   });
   return issue;
@@ -874,7 +895,7 @@ function photoCount(iss){
   if(!iss)return 0; c(iss.coverImage);
   (iss.blocks||[]).forEach(function(b){ c(b.image);
     (b.images||[]).forEach(function(g){c(g&&g.src)}); (b.gallery||[]).forEach(function(g){c(g&&g.src)});
-    (b.people||[]).forEach(function(p){c(p&&p.photo)}); (b.quotes||[]).forEach(function(q){c(q&&q.photo)}); });
+    (b.people||[]).forEach(function(p){c(p&&p.photo); ((p&&p.extra)||[]).forEach(c);}); (b.quotes||[]).forEach(function(q){c(q&&q.photo)}); });
   return n;
 }
 var _snapDone={}, _dropOk={};
@@ -1247,7 +1268,7 @@ function countPhotos(iss){
     if(b.image)n++;
     if(b.images)n+=b.images.length;
     if(b.gallery)n+=b.gallery.length;
-    if(b.people)b.people.forEach(function(p){if(p.photo)n++});
+    if(b.people)b.people.forEach(function(p){if(p.photo)n++; n+=(p.extra||[]).length;});
     if(b.quotes)b.quotes.forEach(function(q){if(q.photo)n++});
   });
   return n;
@@ -1357,7 +1378,7 @@ function showSections(type){
   };
   Object.keys(map).forEach(function(id){$(id).classList.toggle('hide',!map[id])});
   $('mTitleLbl').textContent=cult?'Chamada (frase de abertura do setor)':ppl?'Título (opcional)':'Título';
-  $('mTitle').placeholder=cult?'Ex.: Onde a qualidade da Raguife começa':ppl?'Ex.: Boas-vindas a quem chegou':'';
+  $('mTitle').placeholder=cult?'Ex.: Onde a qualidade da Raguife começa':type==='nascimentos'?'Ex.: Chegaram para alegrar nossas famílias':type==='casamentos'?'Ex.: Felicidades aos noivos':ppl?'Ex.: Boas-vindas a quem chegou':'';
   $('mSubtitleLbl').textContent=ppl?'Texto curto de apresentação (opcional)':'Subtítulo (opcional)';
   $('mSubtitle').placeholder=ppl?'Ex.: Conheça quem começou com a gente este mês.':'';
   $('mTextLbl').textContent=cult?'Atividades do setor e sua importância':'Texto';
@@ -1366,6 +1387,7 @@ function showSections(type){
   $('mImgLbl').textContent=cult?'📷 Foto principal do setor':'📷 Foto principal';
   $('mMatGalLbl').textContent=cult?'🖼️ Fotos do setor e da equipe (várias)':'🖼️ Fotos extras da matéria (galeria)';
   $('authHint').classList.toggle('hide',!needsAuth(type));
+  $('mPeopleStyle').parentNode.classList.toggle('hide',needsAuth(type));
   $('peopleLbl').textContent=cult?'👥 Equipe do setor (foto, nome e função)':'Pessoas (foto, nome e detalhe)';
 }
 function openModal(id){
@@ -1396,7 +1418,7 @@ function openModal(id){
   renderMatGalleryEdit();
   tempGallery=(b.images||[]).map(function(g){return typeof g==='string'?{src:g,cap:''}:{src:g.src,cap:g.cap||''}});
   renderGalleryEdit();
-  tempPeople=(b.people||[]).map(function(p){return{name:p.name,info:p.info,photo:p.photo||'',auth:!!p.auth}});
+  tempPeople=(b.people||[]).map(function(p){return{name:p.name,info:p.info,photo:p.photo||'',auth:!!p.auth,extra:(p.extra||[]).slice()}});
   if(!tempPeople.length&&(isPeopleType(modalType)||modalType==='cultura'))tempPeople.push({name:'',info:'',photo:''});
   renderPeopleRows();
   tempQuotes=(b.quotes||[]).map(function(q){return{text:q.text||'',name:q.name||'',role:q.role||'',photo:q.photo||''}});
@@ -1438,7 +1460,18 @@ function renderPeopleRows(){
       +'<input placeholder="Nome" value="'+esc(p.name)+'" data-f="name">'
       +'<input placeholder="'+esc(peoplePlaceholder())+'" value="'+esc(p.info)+'" data-f="info">'
       +'<button class="del" title="Remover">✕</button>'
+      +(needsAuth(modalType)?'<div class="extra-strip">'+(p.extra||[]).map(function(x,k){return '<span class="ex"><img src="'+x+'" alt=""><i data-k="'+k+'" title="Remover">×</i></span>';}).join('')
+        +'<button type="button" class="ex-add" title="Adicionar mais fotos">＋ Mais fotos</button></div>':'')
       +(needsAuth(modalType)?'<label class="auth-chk'+(p.auth?' ok':'')+'"><input type="checkbox" data-f="auth"'+(p.auth?' checked':'')+'> 📄 Termo de Autorização assinado recebido</label>':'');
+    var exAdd=row.querySelector('.ex-add');
+    if(exAdd)exAdd.onclick=function(){
+      var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
+      inp.onchange=function(e){Array.prototype.slice.call(e.target.files).forEach(function(f){readImage(f,function(d){
+        if(!tempPeople[i].photo)tempPeople[i].photo=d; else (tempPeople[i].extra=tempPeople[i].extra||[]).push(d);
+        renderPeopleRows();});});};
+      inp.click();
+    };
+    row.querySelectorAll('.extra-strip i').forEach(function(x){x.onclick=function(){tempPeople[i].extra.splice(Number(x.dataset.k),1);renderPeopleRows();};});
     var ac=row.querySelector('[data-f=auth]');
     if(ac)ac.onchange=function(e){tempPeople[i].auth=e.target.checked;e.target.parentNode.classList.toggle('ok',e.target.checked)};
     row.querySelector('[data-f=name]').oninput=function(e){tempPeople[i].name=e.target.value};
@@ -1525,7 +1558,7 @@ function saveModal(){
     b.category=sec||PEOPLE_META[modalType].label;
     b.subtitle=$('mSubtitle').value.trim();
     b.style=$('mPeopleStyle').value;
-    b.people=tempPeople.filter(function(p){return (p.name||'').trim()}).map(function(p){var o={name:p.name.trim(),info:(p.info||'').trim(),photo:p.photo||''};if(needsAuth(modalType))o.auth=!!p.auth;return o;});
+    b.people=tempPeople.filter(function(p){return (p.name||'').trim()}).map(function(p){var o={name:p.name.trim(),info:(p.info||'').trim(),photo:p.photo||''};if(needsAuth(modalType)){o.auth=!!p.auth;o.extra=(p.extra||[]).filter(Boolean);}return o;});
     if(!b.people.length){alert('Adicione ao menos uma pessoa.');return}
     if(needsAuth(modalType)){var semAut=b.people.filter(function(p){return !p.auth}).map(function(p){return '• '+p.name});
       if(semAut.length)alert('Salvo, mas atenção: falta o Termo de Autorização de:\n\n'+semAut.join('\n')+'\n\nA edição só pode ser publicada depois que todos estiverem marcados como autorizados.');}
@@ -1586,6 +1619,20 @@ function articleHTML(b){
   }
   if(isPeopleType(b.type)){
     var cards=(b.style||PEOPLE_META[b.type].style)==='cards';
+    if(needsAuth(b.type)){
+      var albums=(b.people||[]).map(function(p){
+        var cap=esc(p.name+(p.info?' · '+p.info:''));
+        var ph=[p.photo].concat(p.extra||[]).filter(Boolean);
+        var pics=ph.length?'<div class="album-pics n'+Math.min(ph.length,4)+'">'+ph.map(function(x){return '<img src="'+x+'" alt="'+esc(p.name)+'" data-cap="'+cap+'">';}).join('')+'</div>'
+          :'<div class="album-pics n0"><span class="ph">'+initial(p.name)+'</span></div>';
+        return '<div class="album">'+pics+'<div class="album-txt"><b>'+esc(p.name)+'</b>'+(p.info?'<span>'+esc(p.info)+'</span>':'')+'</div></div>';
+      }).join('');
+      return '<div class="art">'
+        +(b.title?'<h3 style="font-size:18px;margin:0 0 6px">'+esc(b.title)+'</h3>':'')
+        +(b.subtitle?'<p class="intro">'+esc(b.subtitle)+'</p>':'')
+        +'<div class="albums">'+albums+'</div>'
+        +'<p class="auth-note">As fotos dos nascimentos e casamentos foram previamente autorizadas pelos responsáveis.</p></div>';
+    }
     var people=(b.people||[]).map(function(p){
       var av=p.photo?'<img src="'+p.photo+'" alt="'+esc(p.name)+'" data-cap="'+esc(p.name+(p.info?' · '+p.info:''))+'">':'<span class="ph">'+initial(p.name)+'</span>';
       return '<div class="person">'+av+'<div><b>'+esc(p.name)+'</b><span>'+esc(p.info||'')+'</span></div></div>';
@@ -1720,7 +1767,7 @@ function renderReader(){
   fixMissingImgs($('reader'));
   wireLightbox($('reader'));
 }
-var ZOOM_SEL='img.hero, .gallery img, .cult-member img, .people.cards img';
+var ZOOM_SEL='img.hero, .gallery img, .cult-member img, .people.cards img, .album img';
 function wireLightbox(root){
   root.querySelectorAll(ZOOM_SEL).forEach(function(im){
     im.onclick=function(){
