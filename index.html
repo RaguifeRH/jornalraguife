@@ -198,6 +198,8 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
 .cover .lead{font-size:15px;max-width:640px;margin:0;color:#eafaf0;line-height:1.5}
 .cover .cap{position:absolute;right:14px;bottom:10px;z-index:2;font-size:10px;color:#dfeee5;opacity:.85}
 .j-body{padding:22px}
+.j-body>.lider:first-child,.j-body>.devo:first-child{margin-top:-22px}
+.j-body>.devo+.editorial,.j-body>.lider+.editorial{margin-top:22px}
 .editorial{padding:2px 0 18px;border-bottom:2px solid var(--soft);margin-bottom:18px}
 .editorial .lbl{font-size:11px;font-weight:800;color:var(--lime);text-transform:uppercase;letter-spacing:.07em}
 .editorial p{font-size:14px;line-height:1.7;color:#3e4a44;margin:8px 0 0}
@@ -303,6 +305,53 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
 .cult-member span{font-size:10.5px;opacity:.8;display:block;margin-top:2px}
 .cultura .gallery{gap:8px}
 .cultura .gallery figcaption{color:#cfe3d4}
+
+/* ===== PALAVRA DA LIDERANÇA ===== */
+.lider{margin:0 -22px;padding:28px 22px 26px;position:relative;overflow:hidden;background:linear-gradient(180deg,#f1f8e6 0%,#fbfdf8 100%);border-top:5px solid var(--lime-logo);border-bottom:1px solid #e3edd6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.lider::before{content:"\201C";position:absolute;right:14px;top:-26px;font-family:Georgia,serif;font-size:190px;line-height:1;color:rgba(115,150,48,.13);font-weight:800;pointer-events:none}
+.lider>*{position:relative}
+.lider-badge{display:inline-flex;align-items:center;gap:6px;background:var(--green);color:#fff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:6px 12px;border-radius:999px}
+.lider-in{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;margin-top:16px}
+.lider-pic{flex:none;width:136px;margin:0 auto}
+.lider-pic img,.lider-pic .ph{width:136px;height:170px;border-radius:18px;object-fit:cover;border:4px solid #fff;box-shadow:0 12px 30px rgba(2,79,43,.18);display:block}
+.lider-pic img{cursor:zoom-in}
+.lider-pic .ph{background:linear-gradient(135deg,var(--green),#0a7a47);color:#fff;display:grid;place-items:center;font-size:48px;font-weight:800}
+.lider-body{flex:1 1 250px;min-width:0}
+.lider-body h2{margin:0 0 10px;font-size:clamp(21px,5vw,27px);line-height:1.2;font-weight:800;color:var(--green)}
+.lider-txt{font-size:14.5px;line-height:1.75;color:#34423a}
+.lider-txt p{margin:0 0 .75em}
+.lider-txt p:last-child{margin-bottom:0}
+.lider-sign{margin-top:16px;padding-top:12px;border-top:2px solid #e3edd6;display:flex;flex-direction:column;gap:2px}
+.lider-sign b{font-size:15px;color:var(--green)}
+.lider-sign span{font-size:12px;color:var(--muted);font-weight:600}
+
+/* ===== DEVOCIONAL ===== */
+.devo{margin:0 -22px;padding:30px 22px 28px;position:relative;overflow:hidden;background:linear-gradient(165deg,#fcf6e7 0%,#f6ead0 100%);border-bottom:1px solid #eadcb8;color:#4a3710;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.devo::after{content:"";position:absolute;left:-60px;bottom:-60px;width:190px;height:190px;border-radius:50%;background:rgba(201,138,26,.10);pointer-events:none}
+.devo>*{position:relative;z-index:1}
+.devo-badge{display:inline-flex;align-items:center;gap:6px;background:#c98a1a;color:#fff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:6px 12px;border-radius:999px}
+.devo h2{margin:14px 0 4px;font-size:clamp(21px,5vw,27px);line-height:1.2;font-weight:800;color:#6b4a10}
+.devo-verse{margin:18px 0;padding:20px 18px;background:rgba(255,255,255,.7);border-radius:16px;text-align:center;border:1px solid #eadcb8}
+.devo-verse p{margin:0;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:clamp(17px,4.2vw,21px);line-height:1.5;color:#5a3e0c}
+.devo-verse cite{display:block;margin-top:10px;font-style:normal;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#a8731a}
+.devo-verse cite::before,.devo-verse cite::after{content:"";display:inline-block;width:18px;height:2px;background:#d9b46a;vertical-align:middle;margin:0 8px}
+.devo-txt{font-size:14.5px;line-height:1.75;color:#4a3a1c}
+.devo-txt p{margin:0 0 .75em}
+.devo-txt p:last-child{margin-bottom:0}
+.devo-sign{display:flex;align-items:center;gap:12px;margin-top:18px}
+.devo-sign img,.devo-sign .ph{width:52px;height:52px;border-radius:50%;object-fit:cover;flex:none;border:3px solid #fff;box-shadow:0 4px 12px rgba(107,74,16,.18)}
+.devo-sign img{cursor:zoom-in}
+.devo-sign .ph{background:#c98a1a;color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px}
+.devo-sign b{display:block;font-size:14.5px;color:#6b4a10}
+.devo-sign span{font-size:12px;color:#8a6a2e;font-weight:600}
+.lider+.devo{border-top:none}
+.j-body>.editorial:not(:first-child){margin-top:22px}
+.j-root.justify .lider-txt,.j-root.justify .devo-txt{text-align:justify;text-justify:inter-word;hyphens:auto;-webkit-hyphens:auto}
+/* editor: painéis das seções fixas */
+.panel.hl-lider{border-color:#cfe3b0;background:#fbfdf6}
+.panel.hl-devo{border-color:#eadcb8;background:#fffcf4}
+.panel.hl-devo>h3{color:#8a5d10}
+.sec-off .sec-fields{opacity:.45;pointer-events:none}
 
 .qr-block{margin-top:22px;background:var(--soft);border:1px dashed #c3cfc4;border-radius:14px;padding:16px;text-align:center}
 .qr-block p{font-size:12px;color:var(--muted);margin:0}
@@ -551,6 +600,49 @@ input:focus,textarea:focus,select:focus{border-color:var(--lime);box-shadow:0 0 
       <div class="mt"><label>Legenda da capa</label><input id="fCoverCap" type="text" placeholder="Legenda opcional"></div>
       <label class="check mt"><input id="fCoverFull" type="checkbox"> Capa em tela cheia (mais impacto)</label>
       <label class="check mt"><input id="fJustify" type="checkbox" checked> Justificar os textos (alinhados dos dois lados)</label>
+    </section>
+
+    <section class="panel hl-lider" id="liderPanel">
+      <h3>✍️ Palavra da Liderança</h3>
+      <label class="check"><input id="lOn" type="checkbox"> Mostrar nesta edição (logo após a capa)</label>
+      <div class="sec-fields mt">
+        <div class="field"><label>Nome da seção</label>
+          <input id="lLabel" type="text" list="lLabelList" placeholder="Palavra da Liderança">
+          <datalist id="lLabelList"><option value="Palavra da Liderança"><option value="Palavra da Gestão"><option value="Palavra do Diretor"><option value="Palavra da Diretora"><option value="Palavra do Gerente"><option value="Palavra da Gerente"><option value="Palavra do Coordenador"></datalist></div>
+        <div class="grid2">
+          <div><label>Nome</label><input id="lName" type="text" placeholder="Ex.: João Silva"></div>
+          <div><label>Cargo / área</label><input id="lRole" type="text" placeholder="Ex.: Gerente de Produção"></div>
+        </div>
+        <div class="mt"><label>Título da mensagem</label><input id="lTitle" type="text" placeholder="Ex.: Juntos, vamos mais longe"></div>
+        <div class="mt"><label>Mensagem</label><textarea id="lText" style="min-height:130px" placeholder="Escreva a mensagem. Deixe uma linha em branco entre os parágrafos."></textarea></div>
+        <label class="file-btn mt">📷 Foto da pessoa<input id="lPhotoInput" type="file" accept="image/*"></label>
+        <div class="thumb-wrap" id="lPhotoWrap">
+          <img class="thumb" id="lPhotoThumb" alt="Foto" style="aspect-ratio:4/5;max-width:160px">
+          <div class="thumb-actions"><button class="chip-btn" id="lPhotoRemove">Excluir</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel hl-devo" id="devoPanel">
+      <h3>🙏 Devocional</h3>
+      <label class="check"><input id="dOn" type="checkbox"> Mostrar nesta edição</label>
+      <div class="sec-fields mt">
+        <div class="field"><label>Título</label><input id="dTitle" type="text" placeholder="Ex.: Tempo de semear"></div>
+        <div class="field"><label>Versículo / frase de reflexão (opcional)</label>
+          <textarea id="dVerse" style="min-height:64px" placeholder="Ex.: Tudo tem o seu tempo determinado..."></textarea></div>
+        <div class="field"><label>Referência (opcional)</label><input id="dRef" type="text" placeholder="Ex.: Eclesiastes 3:1"></div>
+        <div class="field"><label>Mensagem</label><textarea id="dText" style="min-height:130px" placeholder="Escreva a reflexão. Deixe uma linha em branco entre os parágrafos."></textarea></div>
+        <div class="grid2">
+          <div><label>Assinatura (nome)</label><input id="dName" type="text" placeholder="Nome da diretora"></div>
+          <div><label>Cargo</label><input id="dRole" type="text" placeholder="Ex.: Diretora"></div>
+        </div>
+        <label class="file-btn mt">📷 Foto (opcional, aparece pequena)<input id="dPhotoInput" type="file" accept="image/*"></label>
+        <div class="thumb-wrap" id="dPhotoWrap">
+          <img class="thumb" id="dPhotoThumb" alt="Foto" style="aspect-ratio:1;max-width:120px">
+          <div class="thumb-actions"><button class="chip-btn" id="dPhotoRemove">Excluir</button></div>
+        </div>
+        <div class="note">Os dados da assinatura e da foto ficam salvos e são copiados ao duplicar a edição — só troque a mensagem a cada mês.</div>
+      </div>
     </section>
 
     <section class="panel">
@@ -868,6 +960,8 @@ function stripImages(issue,bag){
   var c=JSON.parse(JSON.stringify(issue));
   function take(v){ if(!isBase64(v))return v; var id=imgHash(v); bag[id]=v; return 'img::'+id; }
   c.coverImage=take(c.coverImage);
+  if(c.lider&&c.lider.photo)c.lider.photo=take(c.lider.photo);
+  if(c.devo&&c.devo.photo)c.devo.photo=take(c.devo.photo);
   (c.blocks||[]).forEach(function(b){
     if(b.image)b.image=take(b.image);
     if(b.images)b.images.forEach(function(g){ if(g&&g.src)g.src=take(g.src); });
@@ -880,6 +974,8 @@ function stripImages(issue,bag){
 function hydrate(issue,imgs){
   function put(v){ return isRef(v)?(imgs[v.slice(5)]||v):v; }
   issue.coverImage=put(issue.coverImage);
+  if(issue.lider)issue.lider.photo=put(issue.lider.photo);
+  if(issue.devo)issue.devo.photo=put(issue.devo.photo);
   (issue.blocks||[]).forEach(function(b){
     if(b.image)b.image=put(b.image);
     if(b.images)b.images.forEach(function(g){ if(g)g.src=put(g.src); });
@@ -892,7 +988,7 @@ function hydrate(issue,imgs){
 /* conta fotos (base64 ou referência) de uma edição */
 function photoCount(iss){
   var n=0; function c(v){ if(isBase64(v)||isRef(v))n++; }
-  if(!iss)return 0; c(iss.coverImage);
+  if(!iss)return 0; c(iss.coverImage); c(iss.lider&&iss.lider.photo); c(iss.devo&&iss.devo.photo);
   (iss.blocks||[]).forEach(function(b){ c(b.image);
     (b.images||[]).forEach(function(g){c(g&&g.src)}); (b.gallery||[]).forEach(function(g){c(g&&g.src)});
     (b.people||[]).forEach(function(p){c(p&&p.photo); ((p&&p.extra)||[]).forEach(c);}); (b.quotes||[]).forEach(function(q){c(q&&q.photo)}); });
@@ -1204,7 +1300,17 @@ function backupMenu(){
 function blankIssue(month,year){
   return { id:uid(), month:month, year:year, status:'Rascunho',
     title:'', subtitle:'', editorial:'', coverImage:'', coverCaption:'', coverFull:false, justify:true,
-    publishDate:'', publishedAt:'', updatedAt:new Date().toISOString(), blocks:[] };
+    publishDate:'', publishedAt:'', updatedAt:new Date().toISOString(), blocks:[],
+    lider:blankLider(), devo:blankDevo() };
+}
+function blankLider(){return {on:false,label:'Palavra da Liderança',name:'',role:'',title:'',text:'',photo:''};}
+function blankDevo(){return {on:false,title:'',verse:'',ref:'',text:'',name:'',role:'Diretora',photo:''};}
+/* edições antigas não têm as seções fixas: completa com os padrões */
+function ensureExtras(iss){
+  if(!iss)return iss;
+  var l=blankLider(),d=blankDevo();
+  iss.lider=Object.assign(l,iss.lider||{}); iss.devo=Object.assign(d,iss.devo||{});
+  return iss;
 }
 function newBlock(type){
   var b={id:uid(),type:type,category:CATEGORIES[0]};
@@ -1220,6 +1326,10 @@ function demoIssue(){
   var iss=blankIssue(8,2026);
   iss.title='Um mês de conquistas e desenvolvimento';
   iss.subtitle='Confira os principais acontecimentos da Raguife neste mês.';
+  iss.lider={on:true,label:'Palavra da Liderança',name:'João Pereira',role:'Gerente de Produção',title:'Juntos, vamos mais longe',
+    text:'Cada conquista deste mês tem a marca de quem veste a camisa da Raguife.\n\nObrigado pelo cuidado, pela segurança e pelo compromisso de todos os dias.',photo:''};
+  iss.devo={on:true,title:'Tempo de semear',verse:'Tudo tem o seu tempo determinado, e há tempo para todo propósito debaixo do céu.',ref:'Eclesiastes 3:1',
+    text:'Assim como no campo, nosso trabalho pede paciência e constância. O que plantamos hoje, com dedicação, vira fruto amanhã.',name:'Nome da Diretora',role:'Diretora',photo:''};
   iss.editorial='Cada edição do nosso jornal é feita por e para as pessoas que constroem a Raguife todos os dias. Boa leitura!';
   iss.blocks=[
     {id:uid(),type:'cultura',category:'Nossa Cultura',sector:'Fábrica de Rações',title:'Onde a qualidade da Raguife começa',
@@ -1244,6 +1354,11 @@ function syncToForm(){
   $('fEditorial').value=current.editorial; $('fCoverCap').value=current.coverCaption;
   $('fCoverFull').checked=!!current.coverFull; $('fJustify').checked=current.justify!==false;
   setThumb('coverWrap','coverThumb',current.coverImage);
+  ensureExtras(current);
+  $('lOn').checked=!!current.lider.on; $('lLabel').value=current.lider.label||''; $('lName').value=current.lider.name||''; $('lRole').value=current.lider.role||''; $('lTitle').value=current.lider.title||''; $('lText').value=current.lider.text||'';
+  $('dOn').checked=!!current.devo.on; $('dTitle').value=current.devo.title||''; $('dVerse').value=current.devo.verse||''; $('dRef').value=current.devo.ref||''; $('dText').value=current.devo.text||''; $('dName').value=current.devo.name||''; $('dRole').value=current.devo.role||'';
+  setThumb('lPhotoWrap','lPhotoThumb',current.lider.photo); setThumb('dPhotoWrap','dPhotoThumb',current.devo.photo);
+  updateSecOff();
   updateChrome();
 }
 function syncFromForm(){
@@ -1253,6 +1368,14 @@ function syncFromForm(){
   current.title=$('fTitle').value; current.subtitle=$('fSubtitle').value;
   current.editorial=$('fEditorial').value; current.coverCaption=$('fCoverCap').value;
   current.coverFull=$('fCoverFull').checked; current.justify=$('fJustify').checked;
+  ensureExtras(current);
+  current.lider.on=$('lOn').checked; current.lider.label=$('lLabel').value; current.lider.name=$('lName').value; current.lider.role=$('lRole').value; current.lider.title=$('lTitle').value; current.lider.text=$('lText').value;
+  current.devo.on=$('dOn').checked; current.devo.title=$('dTitle').value; current.devo.verse=$('dVerse').value; current.devo.ref=$('dRef').value; current.devo.text=$('dText').value; current.devo.name=$('dName').value; current.devo.role=$('dRole').value;
+  updateSecOff();
+}
+function updateSecOff(){
+  $('liderPanel').classList.toggle('sec-off',!$('lOn').checked);
+  $('devoPanel').classList.toggle('sec-off',!$('dOn').checked);
 }
 function setThumb(wrapId,imgId,src){
   var w=$(wrapId);
@@ -1264,6 +1387,7 @@ function setThumb(wrapId,imgId,src){
    ===================================================================== */
 function countPhotos(iss){
   var n=iss.coverImage?1:0;
+  if(iss.lider&&iss.lider.photo)n++; if(iss.devo&&iss.devo.photo)n++;
   iss.blocks.forEach(function(b){
     if(b.image)n++;
     if(b.images)n+=b.images.length;
@@ -1285,7 +1409,7 @@ function updateChrome(){
   $('lockedHint').classList.toggle('hide',!locked);
   $('publishBtn').disabled=locked; $('reviewBtn').disabled=locked; $('addBtn').disabled=locked;
   $('reopenBtn').style.display=locked?'':'none';
-  ['fMonth','fYear','fTitle','fSubtitle','fEditorial','fCoverCap','fCoverInput','fCoverFull','fJustify'].forEach(function(id){$(id).disabled=locked;});
+  ['fMonth','fYear','fTitle','fSubtitle','fEditorial','fCoverCap','fCoverInput','fCoverFull','fJustify','lOn','lLabel','lName','lRole','lTitle','lText','lPhotoInput','dOn','dTitle','dVerse','dRef','dText','dName','dRole','dPhotoInput'].forEach(function(id){$(id).disabled=locked;});
 }
 
 /* =====================================================================
@@ -1727,9 +1851,39 @@ function fixedBlocksHTML(){
     +'<a class="fx-btn wa" href="'+wa+'" target="_blank" rel="noopener">WhatsApp do RH · '+RH_WHATS_TXT+'</a>'
     +'</div></section>';
 }
+/* texto simples -> parágrafos (linha em branco separa parágrafos) */
+function paras(t){
+  return String(t||'').split(/\r?\n\s*\r?\n/).map(function(x){return x.trim()}).filter(Boolean)
+    .map(function(x){return '<p>'+esc(x).replace(/\r?\n/g,'<br>')+'</p>'}).join('');
+}
+function liderHTML(){
+  var l=current.lider; if(!l||!l.on||!(l.text||'').trim())return '';
+  var pic=l.photo?'<img class="lider-img" src="'+l.photo+'" alt="'+esc(l.name)+'" data-cap="'+esc(l.name+(l.role?' · '+l.role:''))+'">'
+    :'<span class="ph">'+initial(l.name)+'</span>';
+  return '<section class="lider">'
+    +'<span class="lider-badge">✍️ '+esc(l.label||'Palavra da Liderança')+'</span>'
+    +'<div class="lider-in"><div class="lider-pic">'+pic+'</div>'
+    +'<div class="lider-body">'+(l.title?'<h2>'+esc(l.title)+'</h2>':'')
+    +'<div class="lider-txt">'+paras(l.text)+'</div>'
+    +((l.name||l.role)?'<div class="lider-sign"><b>'+esc(l.name)+'</b>'+(l.role?'<span>'+esc(l.role)+'</span>':'')+'</div>':'')
+    +'</div></div></section>';
+}
+function devoHTML(){
+  var d=current.devo; if(!d||!d.on||!((d.text||'').trim()||(d.verse||'').trim()))return '';
+  var av=d.photo?'<img src="'+d.photo+'" alt="'+esc(d.name)+'" data-cap="'+esc(d.name+(d.role?' · '+d.role:''))+'">'
+    :'<span class="ph">'+initial(d.name||'D')+'</span>';
+  return '<section class="devo">'
+    +'<span class="devo-badge">🙏 Devocional</span>'
+    +(d.title?'<h2>'+esc(d.title)+'</h2>':'')
+    +((d.verse||'').trim()?'<blockquote class="devo-verse"><p>“'+esc(d.verse.trim())+'”</p>'+(d.ref?'<cite>'+esc(d.ref)+'</cite>':'')+'</blockquote>':'')
+    +(d.text?'<div class="devo-txt">'+paras(d.text)+'</div>':'')
+    +((d.name||d.role)?'<div class="devo-sign">'+av+'<div><b>'+esc(d.name)+'</b>'+(d.role?'<span>'+esc(d.role)+'</span>':'')+'</div></div>':'')
+    +'</section>';
+}
 /* opts.link: mostra "leia online" no fim (usado no arquivo baixado) */
 function readerHTML(opts){
   opts=opts||{};
+  ensureExtras(current);
   var cover=current.coverImage||placeholder('Foto principal da edição');
   var sec=sectionsHTML();
   var toc=tocHTML(sec.sections);
@@ -1745,6 +1899,7 @@ function readerHTML(opts){
       +'<p class="lead">'+esc(current.subtitle||'')+'</p></div>'
       +(current.coverCaption?'<div class="cap">'+esc(current.coverCaption)+'</div>':'')+'</section>'
     +'<div class="j-body">'
+      +liderHTML()+devoHTML()
       +(current.editorial?'<div class="editorial"><div class="lbl">Editorial</div><p>'+esc(current.editorial)+'</p></div>':'')
       +toc
       +(sec.html||'<div class="empty">Adicione matérias para montar a edição.</div>')
@@ -1767,7 +1922,7 @@ function renderReader(){
   fixMissingImgs($('reader'));
   wireLightbox($('reader'));
 }
-var ZOOM_SEL='img.hero, .gallery img, .cult-member img, .people.cards img, .album img';
+var ZOOM_SEL='img.hero, .gallery img, .cult-member img, .people.cards img, .album img, .lider-pic img, .devo-sign img';
 function wireLightbox(root){
   root.querySelectorAll(ZOOM_SEL).forEach(function(im){
     im.onclick=function(){
@@ -1938,6 +2093,14 @@ function initMonthSelect(){
 function wireEditor(){
   ['fMonth','fYear','fTitle','fSubtitle','fEditorial','fCoverCap'].forEach(function(id){ $(id).addEventListener('input',refresh);});
   $('fCoverFull').addEventListener('change',refresh);
+  ['lLabel','lName','lRole','lTitle','lText','dTitle','dVerse','dRef','dText','dName','dRole'].forEach(function(id){ $(id).addEventListener('input',refresh);});
+  $('lOn').addEventListener('change',refresh); $('dOn').addEventListener('change',refresh);
+  $('lPhotoInput').addEventListener('change',function(e){readImage(e.target.files[0],function(d){
+    ensureExtras(current);current.lider.photo=d;setThumb('lPhotoWrap','lPhotoThumb',d);refresh();});e.target.value='';});
+  $('lPhotoRemove').onclick=function(){current.lider.photo='';setThumb('lPhotoWrap','lPhotoThumb','');refresh();};
+  $('dPhotoInput').addEventListener('change',function(e){readImage(e.target.files[0],function(d){
+    ensureExtras(current);current.devo.photo=d;setThumb('dPhotoWrap','dPhotoThumb',d);refresh();});e.target.value='';});
+  $('dPhotoRemove').onclick=function(){current.devo.photo='';setThumb('dPhotoWrap','dPhotoThumb','');refresh();};
   $('fJustify').addEventListener('change',refresh);
   $('fCoverInput').addEventListener('change',function(e){readImage(e.target.files[0],function(d){
     current.coverImage=d;setThumb('coverWrap','coverThumb',d);refresh();});e.target.value='';});
