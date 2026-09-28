@@ -842,6 +842,12 @@ input:disabled,textarea:disabled,select:disabled{background:#f1f4f0;color:#7a857
 .fs-bar button{white-space:nowrap;font-size:13px;padding:8px 11px}
 @media (max-width:480px){ .fs-bar>b{display:none} .fs-bar>div{margin-left:auto} }
 
+.topic-more{margin-top:1.2em}
+.topic-more .gal.g1 img{aspect-ratio:16/10}
+.save-ind.err{color:var(--danger)}
+.save-ind.err .dot{background:var(--danger)}
+.gcell .gfirst{position:absolute;left:10px;top:10px;z-index:1;background:var(--g800);color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:3px 7px;border-radius:6px}
+
 </style>
 <!-- FIREBASE SDK (compat via CDN) — versão 12.18.0 -->
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
@@ -1185,7 +1191,12 @@ function loadAllFromFirestore(){
 }
 
 /* ---- fotos: qualquer texto que comece com "data:" vira um documento em imagens/{id} ---- */
+var _hashCache = new Map();
 function imgHash(dataUrl){
+  var c = _hashCache.get(dataUrl); if(c) return c;
+  c = _imgHash(dataUrl); _hashCache.set(dataUrl, c); return c;
+}
+function _imgHash(dataUrl){
   var h = 5381; for(var i = 0; i < dataUrl.length; i++){ h = ((h << 5) + h + dataUrl.charCodeAt(i)) | 0; }
   return (h >>> 0).toString(16) + '-' + dataUrl.length.toString(16);
 }
@@ -1212,7 +1223,8 @@ function photoCount(iss){
   return n;
 }
 var _snapDone = {}, _dropOk = {};
-function saveIssueFB(issue){
+function saveIssueFB(issue, hooks){
+  hooks = hooks || {};
   var key = keyOf(issue), bag = {};
   var stripped = stripImages(issue, bag);
   var prev = _cache[key];
@@ -1235,10 +1247,11 @@ function saveIssueFB(issue){
         .set(clone(prev)).catch(function(e){ console.warn('versão de segurança falhou', e); });
     }
     _cache[key] = stripped;
-    var pend = Object.keys(bag).filter(function(id){ return !_savedImgs[id]; });
+    var pend = Object.keys(bag).filter(function(id){ return !_savedImgs[id]; }), sent = 0;
+    if(hooks.pend) hooks.pend(pend.length);
     var writes = pend.map(function(id){
       return db.collection(FB_COLLECTION).doc(key).collection('imagens').doc(id)
-        .set({data:bag[id]}).then(function(){ _savedImgs[id] = true; });
+        .set({data:bag[id]}).then(function(){ _savedImgs[id] = true; sent++; if(hooks.img) hooks.img(sent, pend.length); });
     });
     return Promise.all(writes.concat([snap])).then(function(){
       return db.collection(FB_COLLECTION).doc(key).set(stripped);
@@ -1266,19 +1279,19 @@ function fbDeleteIssue(key){
 }
 
 /* =====================================================================
-   4. IMAGENS — reduz e comprime (máx. 1400px, ~850 KB)
+   4. IMAGENS — reduz e comprime (máx. 1280px, ~400 KB)
    ===================================================================== */
 function compressImage(file, cb){
   var img = new Image(); var url = URL.createObjectURL(file);
   img.onload = function(){
     URL.revokeObjectURL(url);
-    var maxDim = 1400, w = img.width, h = img.height;
+    var maxDim = 1280, w = img.width, h = img.height;
     if(w >= h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
     else if(h > w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
     var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
     var ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
-    var q = 0.72, out = cv.toDataURL('image/jpeg', q), budget = 850 * 1024, g = 0;
-    while(out.length > budget && q > 0.4 && g < 6){ q -= 0.1; out = cv.toDataURL('image/jpeg', q); g++; }
+    var q = 0.74, out = cv.toDataURL('image/jpeg', q), budget = 400 * 1024, g = 0;
+    while(out.length > budget && q > 0.45 && g < 6){ q -= 0.07; out = cv.toDataURL('image/jpeg', q); g++; }
     var g2 = 0;
     while(out.length > budget && g2 < 4){
       w = Math.round(w * 0.82); h = Math.round(h * 0.82);
@@ -1464,9 +1477,9 @@ function fxDefaults(){
     lider:{on:true, label:'Palavra da Liderança', name:'', role:'', title:'', text:'', photo:''},
     devo:{on:true, title:'', verse:'', ref:'', text:'', name:'', role:'Diretora', photo:''},
     destaque:{on:true, kicker:'', title:'', subtitle:'', text:'', image:'', caption:'', author:'', gallery:[]},
-    seguranca:{on:true, title:'', subtitle:'', text:'', image:'', caption:'', num:'', numLabel:'dias sem acidente com afastamento', items:[]},
-    saude:{on:true, title:'', subtitle:'', text:'', image:'', caption:'', num:'', numLabel:'', items:[]},
-    qualidade:{on:true, title:'', subtitle:'', text:'', image:'', caption:'', kpis:[], gallery:[]},
+    seguranca:{on:true, title:'', subtitle:'', text:'', photos:[], num:'', numLabel:'dias sem acidente com afastamento', items:[]},
+    saude:{on:true, title:'', subtitle:'', text:'', photos:[], num:'', numLabel:'', items:[]},
+    qualidade:{on:true, title:'', subtitle:'', text:'', photos:[], kpis:[]},
     aniversariantes:{on:true, title:'', subtitle:'', people:[]},
     contra:{benefUrl:BENEFICIOS_URL, whats:RH_WHATS, whatsTxt:RH_WHATS_TXT, prazo:'até o dia 30 de cada mês'}
   };
@@ -1484,7 +1497,19 @@ function blankIssue(month, year){
 function ensureExtras(iss){
   if(!iss) return iss;
   var f = fxDefaults();
-  Object.keys(f).forEach(function(k){ iss[k] = Object.assign(f[k], iss[k] || {}); });
+  Object.keys(f).forEach(function(k){
+    /* importante: completa o objeto que já existe, sem substituí-lo.
+       Substituir fazia o formulário aberto gravar numa cópia que não era salva. */
+    if(!iss[k] || typeof iss[k] !== 'object'){ iss[k] = f[k]; return; }
+    Object.keys(f[k]).forEach(function(p){ if(!(p in iss[k])) iss[k][p] = f[k][p]; });
+  });
+  /* edições feitas antes das várias fotos: foto única (e galeria da Qualidade) viram a lista "photos" */
+  ['seguranca','saude','qualidade'].forEach(function(k){
+    var d = iss[k]; if(!Array.isArray(d.photos)) d.photos = [];
+    if(d.image){ d.photos.unshift({src:d.image, cap:d.caption || ''}); }
+    if(d.image !== undefined || d.caption !== undefined){ delete d.image; delete d.caption; }
+    if(Array.isArray(d.gallery)){ d.gallery.forEach(function(g){ d.photos.push(normImg(g)); }); delete d.gallery; }
+  });
   if(!Array.isArray(iss.blocks)) iss.blocks = [];
   iss.blocks.forEach(function(b){ if(!b.id) b.id = uid(); });
   ensureOrder(iss);
@@ -1494,8 +1519,9 @@ function ensureExtras(iss){
 function ensureOrder(iss){
   var blocks = (iss.blocks || []).map(function(b){ return 'b:' + b.id; });
   var fixed = FIXED_KEYS.map(function(k){ return 'fx:' + k; });
-  if(!Array.isArray(iss.order) || !iss.order.length){
-    iss.order = fixed.slice(0, 6).concat(blocks, ['fx:aniversariantes']);
+  if(!Array.isArray(iss.order)) iss.order = [];
+  if(!iss.order.length){
+    Array.prototype.push.apply(iss.order, fixed.slice(0, 6).concat(blocks, ['fx:aniversariantes']));
     return iss.order;
   }
   var valid = {}; fixed.concat(blocks).forEach(function(k){ valid[k] = true; });
@@ -1516,8 +1542,8 @@ function ensureOrder(iss){
     if(a >= 0 && a === out.length - 1) out.splice(a, 0, k); else out.push(k);
     seen[k] = true;
   });
-  iss.order = out;
-  return out;
+  iss.order.length = 0; Array.prototype.push.apply(iss.order, out);
+  return iss.order;
 }
 function blockById(iss, id){ for(var i = 0; i < iss.blocks.length; i++) if(iss.blocks[i].id === id) return iss.blocks[i]; return null; }
 
@@ -1542,7 +1568,7 @@ function hasContent(sec, d){
     case 'devo': return !!(plain(d.text) || plain(d.verse));
     case 'destaque': return !!(d.title || plain(d.text));
     case 'seguranca': case 'saude': return !!(d.title || plain(d.text) || (d.items || []).length);
-    case 'qualidade': return !!(d.title || plain(d.text) || (d.kpis || []).length || (d.gallery || []).length);
+    case 'qualidade': return !!(d.title || plain(d.text) || (d.kpis || []).length || (d.photos || []).length);
     case 'aniversariantes': return (d.people || []).length > 0;
   }
   return true;
@@ -1606,7 +1632,7 @@ function demoIssue(){
     gallery:[{src:'', cap:'Montagem do condicionador'},{src:'', cap:'Teste de durabilidade do pélete'},{src:'', cap:'Equipe de manutenção'}]};
   iss.seguranca = {on:true, title:'EPI certo, no lugar certo', subtitle:'A campanha do mês reforça o uso de protetor auricular e luvas nas áreas de moagem e ensaque.',
     text:'<p>O ruído do moinho passa de 90 decibéis. Sem protetor, a perda de audição acontece aos poucos e não tem volta. Por isso, na moagem, o protetor auricular é obrigatório o turno inteiro — inclusive para quem só está de passagem.</p><p>No ensaque, as luvas de vaqueta evitam cortes na costura dos sacos. Se o seu EPI estiver gasto, peça a troca ao técnico de segurança: <b>trocar é rápido e não tem custo</b>.</p>',
-    image:'', caption:'Kit de EPIs da moagem', num:'287', numLabel:'dias sem acidente com afastamento',
+    photos:[{src:'', cap:'Kit de EPIs da moagem'},{src:'', cap:'Placas de sinalização renovadas no ensaque'},{src:'', cap:'Treinamento de uso do protetor auricular'}], num:'287', numLabel:'dias sem acidente com afastamento',
     items:[
       {src:'', title:'Uso correto do protetor auricular', desc:'Como colocar o plug, quando trocar e por que o abafador não pode ficar no pescoço.', date:'2026-09-02', setor:'Moagem', by:'Carlos Lima, técnico de segurança'},
       {src:'', title:'Empilhadeira e rota de pedestres', desc:'Faixas amarelas, buzina nos cruzamentos e contato visual antes de passar.', date:'2026-09-09', setor:'Expedição', by:'Carlos Lima'},
@@ -1615,7 +1641,7 @@ function demoIssue(){
     ]};
   iss.saude = {on:true, title:'Setembro Amarelo: falar é cuidar', subtitle:'Saúde mental também é saúde. Conversamos sobre sinais de alerta e onde buscar ajuda.',
     text:'<p>Tristeza que não passa, isolamento e mudança de sono merecem atenção. Se perceber isso em você ou num colega, puxe conversa e ofereça ajuda sem julgamento.</p><p>O <b>CVV atende pelo telefone 188</b>, 24 horas, de graça. No RH, a porta está sempre aberta para conversar com sigilo.</p>',
-    image:'', caption:'', num:'142', numLabel:'colaboradores vacinados contra a gripe',
+    photos:[{src:'', cap:'Roda de conversa do Setembro Amarelo'},{src:'', cap:'Laço amarelo na entrada da fábrica'}], num:'142', numLabel:'colaboradores vacinados contra a gripe',
     items:[
       {src:'', title:'Errar, avisar e aprender', desc:'Por que contar um erro logo evita acidentes e retrabalho, e como o líder deve receber o aviso.', date:'2026-09-05', setor:'Produção', by:'Rafael Souza, supervisor'},
       {src:'', title:'Pedir ajuda não é fraqueza', desc:'Frases simples para pedir apoio no turno e como acolher quem pede.', date:'2026-09-12', setor:'Expedição', by:'Marina Alves, RH'},
@@ -1623,8 +1649,8 @@ function demoIssue(){
     ]};
   iss.qualidade = {on:true, title:'Auditoria de BPF aprovada com 96%', subtitle:'Resultado é o melhor dos últimos três anos e reconhece o cuidado com higiene e rastreabilidade.',
     text:'<p>A auditoria externa de Boas Práticas de Fabricação passou por todas as áreas, do recebimento de grãos à expedição. Os pontos mais elogiados foram a organização do almoxarifado e o registro dos lotes.</p><p>Os dois pontos de melhoria — identificação de utensílios e limpeza das calhas — já estão com plano de ação.</p>',
-    image:'', caption:'', kpis:[{n:'96%', l:'nota na auditoria de BPF'},{n:'0', l:'reclamações de cliente no mês'},{n:'12', l:'melhorias de 5S implantadas'}],
-    gallery:[{src:'', cap:'Almoxarifado organizado'},{src:'', cap:'Coleta de amostras no laboratório'}]};
+    photos:[{src:'', cap:'Auditores no recebimento de grãos'},{src:'', cap:'Almoxarifado organizado'},{src:'', cap:'Coleta de amostras no laboratório'}], kpis:[{n:'96%', l:'nota na auditoria de BPF'},{n:'0', l:'reclamações de cliente no mês'},{n:'12', l:'melhorias de 5S implantadas'}],
+  };
   iss.aniversariantes = {on:true, title:'', subtitle:'A Raguife deseja um novo ano cheio de saúde, alegria e conquistas.', people:[
     {name:'Carlos Lima', info:'Segurança do Trabalho', day:'3', photo:''},
     {name:'Marina Alves', info:'Recursos Humanos', day:'8', photo:''},
@@ -1680,6 +1706,13 @@ function normImg(g){ return typeof g === 'string' ? {src:g, cap:''} : {src:(g &&
 function figHTML(src, cap, label, color){
   var s = srcOr(src, label, color); if(!s) return '';
   return '<figure class="fig">' + zimg(s, cap) + (cap ? '<figcaption class="cap">' + esc(cap) + '</figcaption>' : '') + '</figure>';
+}
+/* fotos do assunto do mês: a 1ª aparece grande antes do texto; as outras, depois do texto */
+function topicPhotos(list, color){
+  var L = (list || []).map(normImg).map(function(g){ return {src:srcOr(g.src, 'Foto do assunto', color), cap:g.cap}; }).filter(function(g){ return g.src; });
+  if(!L.length) return {hero:figHTML('', '', 'Foto do assunto', color), rest:''};
+  return {hero:figHTML(L[0].src, L[0].cap, '', color),
+    rest:L.length > 1 ? '<div class="topic-more">' + galHTML(L.slice(1), color) + '</div>' : ''};
 }
 function galHTML(list, color){
   var L = (list || []).map(normImg).map(function(g){ return {src:srcOr(g.src, 'Foto', color), cap:g.cap}; }).filter(function(g){ return g.src; });
@@ -1864,12 +1897,13 @@ var FX_RENDER = {
     var top = band('qualidade', 'Seção fixa · ' + edLabel(CUR), 'Qualidade', '', n);
     if(p.empty) return {top:top, body:emptyBox('Qualidade')};
     var k = (q.kpis || []).filter(function(x){ return x && (x.n || x.l); });
+    var ph = topicPhotos(q.photos, '#739630');
     return {top:top, body:(q.title ? '<h3 class="h-title">' + esc(q.title) + '</h3>' : '')
       + (q.subtitle ? '<p class="h-sub">' + esc(q.subtitle) + '</p>' : '')
-      + figHTML(q.image, q.caption, 'Foto do assunto', '#739630')
+      + ph.hero
       + '<div class="txt">' + (q.text || '') + '</div>'
-      + (k.length ? hBlock('Indicadores do mês') + '<div class="kpis">' + k.map(function(x){ return '<div class="kpi"><b>' + esc(x.n) + '</b><span>' + esc(x.l) + '</span></div>'; }).join('') + '</div>' : '')
-      + ((q.gallery || []).length ? hBlock('Em fotos') + galHTML(q.gallery, '#739630') : '')};
+      + ph.rest
+      + (k.length ? hBlock('Indicadores do mês') + '<div class="kpis">' + k.map(function(x){ return '<div class="kpi"><b>' + esc(x.n) + '</b><span>' + esc(x.l) + '</span></div>'; }).join('') + '</div>' : '')};
   },
   aniversariantes:function(a, n, p){
     var top = band('aniversariantes', 'Parabéns!', 'Aniversariantes de ' + MONTHS[CUR.month], '', n);
@@ -1891,10 +1925,12 @@ function talksPage(sec, s, n, p, listLabel, phLabel){
   var top = band(sec, 'Seção fixa · ' + edLabel(CUR), SEC[sec].name, num, n);
   if(p.empty) return {top:top, body:emptyBox(SEC[sec].name)};
   var items = (s.items || []).filter(function(it){ return it && (it.title || it.src || it.desc); });
+  var ph = topicPhotos(s.photos, color);
   return {top:top, body:(s.title ? '<h3 class="h-title">' + esc(s.title) + '</h3>' : '')
     + (s.subtitle ? '<p class="h-sub">' + esc(s.subtitle) + '</p>' : '')
-    + figHTML(s.image, s.caption, 'Foto do assunto', color)
+    + ph.hero
     + (plain(s.text) ? '<div class="txt">' + s.text + '</div>' : '')
+    + ph.rest
     + (items.length ? hBlock(listLabel, items.length) + '<div class="talks">' + items.map(function(it){
         var src = srcOr(it.src, phLabel, color), date = dayChip(it.date);
         var cap = [it.title, it.desc].filter(Boolean).join(' — ');
@@ -2254,16 +2290,17 @@ var ED = {tab:'paginas', device:'mobile', scale:1, fb:null, fsFb:null, L:[], sig
 function isLocked(){ return !!current && current.status === 'Publicado'; }
 
 /* ---------- 9.1 SALVAMENTO ---------- */
+/* Na nuvem, os salvamentos entram numa fila: um de cada vez, sempre com o estado mais recente.
+   Antes, dois salvamentos podiam correr juntos e o mais antigo (mais lento, com foto) terminava
+   por último, apagando o que tinha sido digitado depois. */
+var SAVE = {busy:false, q:{}, fails:0, retryT:0, autoPending:false};  /* q: uma vaga por edição (mês) */
 function persist(silent){
   if(!IS_EDITOR || !current) return Promise.resolve();
   if(FB_READY && !BOOT_OK) return Promise.resolve();
+  clearTimeout(saveTimer); SAVE.autoPending = false;
   current.updatedAt = new Date().toISOString();
   var key = keyOf(current);
-  if(FB_READY){
-    flagSaving();
-    return saveIssueFB(current).then(function(){ if(!silent) toast('Edição salva na nuvem'); flagSaved(); refreshHistory(); })
-      .catch(function(e){ console.warn(e); toast('Não foi possível salvar na nuvem. Verifique a internet.'); flagSaved(true); });
-  }
+  if(FB_READY) return queueSave(current, silent);
   var all = loadAll(); all[key] = clone(current);
   var ok = saveAllLocal(all);
   flagSaved(!ok && !IS_PREVIEW_BUILD);
@@ -2271,9 +2308,51 @@ function persist(silent){
   refreshHistory();
   return Promise.resolve();
 }
-function scheduleAutosave(){ flagSaving(); clearTimeout(saveTimer); saveTimer = setTimeout(function(){ persist(true); }, 900); }
-function flagSaving(){ var s = $('saveInd'); if(!s) return; s.classList.add('saving'); $('saveTxt').textContent = 'Salvando…'; }
-function flagSaved(err){ var s = $('saveInd'); if(!s) return; s.classList.remove('saving'); $('saveTxt').textContent = err ? 'Não salvo' : 'Salvo'; }
+function queueSave(iss, silent){
+  return new Promise(function(res){
+    var k = keyOf(iss), prev = SAVE.q[k];
+    SAVE.q[k] = {iss:iss, silent:prev ? (prev.silent && silent) : silent, done:(prev ? prev.done : []).concat([res])};
+    flagSaving(); pumpSave();
+  });
+}
+function pumpSave(){
+  var keys = Object.keys(SAVE.q);
+  if(SAVE.busy || !keys.length) return;
+  clearTimeout(SAVE.retryT);
+  var job = SAVE.q[keys[0]], failed = false; delete SAVE.q[keys[0]]; SAVE.busy = true;
+  flagSaving();
+  saveIssueFB(job.iss, {pend:function(n){ if(n) flagSaving('Enviando ' + n + (n === 1 ? ' foto…' : ' fotos…')); },
+                        img:function(d, n){ if(n > 1) flagSaving('Enviando fotos (' + d + ' de ' + n + ')…'); }})
+  .then(function(){
+    SAVE.fails = 0;
+    if(!job.silent) toast('Edição salva na nuvem');
+    refreshHistory();
+  }, function(e){
+    console.warn(e); failed = true;
+    if(e && /cancelada/.test(e.message || '')){ flagSaved(true); return; }
+    SAVE.fails++;
+    var jk = keyOf(job.iss); if(!SAVE.q[jk]){ job.silent = true; job.done = []; SAVE.q[jk] = job; }
+    var wait = Math.min(30000, 3000 * SAVE.fails);
+    if(SAVE.fails === 1) toast('Sem conexão com a nuvem. Vou tentar salvar de novo sozinho.');
+    SAVE.retryT = setTimeout(pumpSave, wait);
+  })
+  .then(function(){
+    SAVE.busy = false;
+    job.done.forEach(function(r){ r(); });
+    var more = Object.keys(SAVE.q).length > 0;
+    if(failed){ if(more) flagSaved(true, 'Não salvo · tentando de novo'); return; }
+    if(more) pumpSave(); else if(!SAVE.autoPending) flagSaved();
+  });
+}
+function savePending(){ return SAVE.busy || Object.keys(SAVE.q).length > 0 || SAVE.autoPending; }
+/* antes de trocar de edição: salva já o que estava esperando o autosalvamento */
+function flushSave(){ if(SAVE.autoPending) persist(true); }
+window.addEventListener('beforeunload', function(e){
+  if(IS_EDITOR && savePending()){ e.preventDefault(); e.returnValue = 'Ainda estou salvando. Se sair agora, a última alteração pode se perder.'; return e.returnValue; }
+});
+function scheduleAutosave(){ flagSaving(); SAVE.autoPending = true; clearTimeout(saveTimer); saveTimer = setTimeout(function(){ persist(true); }, 900); }
+function flagSaving(txt){ var s = $('saveInd'); if(!s) return; s.classList.add('saving'); $('saveTxt').textContent = txt || 'Salvando…'; }
+function flagSaved(err, txt){ var s = $('saveInd'); if(!s) return; s.classList.remove('saving'); s.classList.toggle('err', !!err); $('saveTxt').textContent = txt || (err ? 'Não salvo' : 'Salvo'); }
 
 /* alguma coisa mudou: salva e atualiza o que for preciso */
 var _liveKey = null;
@@ -2344,8 +2423,7 @@ var F = {
     {t:'sep', label:'Assunto do mês'},
     {k:'title', t:'text', label:'Título', ph:'Ex.: EPI certo, no lugar certo', structural:true},
     {k:'subtitle', t:'textarea', rows:2, label:'Resumo', ph:'Uma ou duas frases sobre o assunto'},
-    {k:'image', t:'image', label:'Foto do assunto (opcional)', ratio:'16/10'},
-    {k:'caption', t:'text', label:'Legenda da foto'},
+    {k:'photos', t:'gallery', label:'Fotos do assunto', hint:'Pode escolher várias de uma vez. A primeira aparece grande no topo; as outras, depois do texto. Use as setas para mudar a ordem.'},
     {k:'text', t:'rich', label:'Texto'},
     {t:'sep', label:'Número em destaque (opcional)'},
     {row:[{k:'num', t:'text', label:'Número', ph:'Ex.: 287'}, {k:'numLabel', t:'text', label:'O que ele significa', ph:'dias sem acidente com afastamento'}]},
@@ -2356,8 +2434,7 @@ var F = {
     {t:'sep', label:'Assunto do mês'},
     {k:'title', t:'text', label:'Título', ph:'Ex.: Setembro Amarelo: falar é cuidar', structural:true},
     {k:'subtitle', t:'textarea', rows:2, label:'Resumo'},
-    {k:'image', t:'image', label:'Foto do assunto (opcional)', ratio:'16/10'},
-    {k:'caption', t:'text', label:'Legenda da foto'},
+    {k:'photos', t:'gallery', label:'Fotos do assunto', hint:'Pode escolher várias de uma vez. A primeira aparece grande no topo; as outras, depois do texto. Use as setas para mudar a ordem.'},
     {k:'text', t:'rich', label:'Texto'},
     {t:'sep', label:'Número em destaque (opcional)'},
     {row:[{k:'num', t:'text', label:'Número', ph:'Ex.: 142'}, {k:'numLabel', t:'text', label:'O que ele significa', ph:'Ex.: vacinados contra a gripe'}]},
@@ -2367,14 +2444,11 @@ var F = {
   qualidade:[
     {k:'title', t:'text', label:'Título', ph:'Ex.: Auditoria de BPF aprovada com 96%', structural:true},
     {k:'subtitle', t:'textarea', rows:2, label:'Resumo'},
-    {k:'image', t:'image', label:'Foto do assunto (opcional)', ratio:'16/10'},
-    {k:'caption', t:'text', label:'Legenda da foto'},
+    {k:'photos', t:'gallery', label:'Fotos do assunto', hint:'Pode escolher várias de uma vez. A primeira aparece grande no topo; as outras, depois do texto. Use as setas para mudar a ordem.'},
     {k:'text', t:'rich', label:'Texto'},
     {t:'sep', label:'Indicadores do mês'},
     {k:'kpis', t:'list', itemName:'Indicador', titleKey:'l', addLabel:'Adicionar indicador', empty:'Nenhum indicador.',
-      item:[{row:[{k:'n', t:'text', label:'Número', ph:'96%'}, {k:'l', t:'text', label:'Descrição', ph:'nota na auditoria'}]}]},
-    {t:'sep', label:'Fotos'},
-    {k:'gallery', t:'gallery', label:''}
+      item:[{row:[{k:'n', t:'text', label:'Número', ph:'96%'}, {k:'l', t:'text', label:'Descrição', ph:'nota na auditoria'}]}]}
   ],
   aniversariantes:[
     {t:'info', html:'Os cartões aparecem em ordem de dia. Coloque só o dia (ex.: 12).'},
@@ -2603,6 +2677,7 @@ function galleryField(w, obj, f, o, ch){
     grid.innerHTML = '';
     a.forEach(function(g, i){
       var cell = mk('div', 'gcell');
+      if(f.k === 'photos' && i === 0 && a.length > 1) cell.appendChild(mk('span', 'gfirst', 'Aparece grande'));
       if(g.src && !isRef(g.src)){ var im = mk('img'); im.src = g.src; im.alt = ''; cell.appendChild(im); }
       else if(!o.locked) cell.appendChild(dropZone('Foto', '', false, function(d){ g.src = d; draw(); ch(); }, '4/3'));
       if(!o.locked){
@@ -2913,7 +2988,8 @@ function closeDrawer(){ ED.drawer = null; $('drawer').classList.remove('open'); 
 function pageIndexOfKey(L, key){ for(var i = 0; i < L.length; i++){ if(L[i].key === key || L[i].keys.indexOf(key) >= 0) return i; } return -1; }
 function renderPreview(){
   var host = $('frame'); if(!host || !current) return;
-  var keep = ED.fb ? ED.fb.index() : ED.pageIdx;
+  /* volta para a mesma página depois de redesenhar (pela seção, não pelo número) */
+  var keepKey = ED.drawer ? ED.drawer.key : (ED.L[ED.pageIdx] && ED.L[ED.pageIdx].key), keep = ED.pageIdx;
   var B = buildBook(current, {preview:true});
   ED.L = B.list; ED.sig = listSignature(B.list);
   if(ED.fb) ED.fb.destroy();
@@ -2921,7 +2997,9 @@ function renderPreview(){
   ED.fb = JR.mountBook(host.querySelector('.book'), {keyGate:function(){ return !ED.fsOpen; },
     onChange:function(i){ ED.pageIdx = i; highlightCard(); }});
   ED.fb.setScale(ED.scale);
-  ED.fb.go(Math.min(keep, ED.L.length - 1), true);
+  var ki = keepKey ? pageIndexOfKey(ED.L, keepKey) : -1;
+  ED.pageIdx = ki >= 0 ? ki : Math.min(keep, ED.L.length - 1);
+  ED.fb.go(ED.pageIdx, true);
 }
 function updatePreviewPage(key){
   if(!ED.fb || !key) return renderPreview();
@@ -2938,6 +3016,7 @@ function updatePreviewPage(key){
 }
 function showPage(key){
   var i = pageIndexOfKey(ED.L, key);
+  if(i >= 0) ED.pageIdx = i;
   if(i >= 0 && ED.fb && i !== ED.fb.index()) ED.fb.go(i);
 }
 function setDevice(dev){
@@ -3162,7 +3241,7 @@ function newEditionDialog(){
       return;
     }
     if(k === keyOf(current)){ tell('Escolha outro mês', 'Essa é a edição que já está aberta.'); return; }
-    closeDrawer();
+    flushSave(); closeDrawer();
     current = r.mode === 'estrutura' ? structureCopy(current, r.m, r.y) : r.mode === 'copia' ? fullCopy(current, r.m, r.y) : blankIssue(r.m, r.y);
     ED.pageIdx = 0; if(ED.fb){ ED.fb.destroy(); ED.fb = null; }
     renderAll(); persist(true); switchTab('paginas');
@@ -3172,7 +3251,7 @@ function newEditionDialog(){
 function openIssue(k){
   function done(iss){
     if(!iss){ toast('Edição não encontrada'); return; }
-    closeDrawer(); current = ensureExtras(iss); ED.pageIdx = 0; if(ED.fb){ ED.fb.destroy(); ED.fb = null; }
+    flushSave(); closeDrawer(); current = ensureExtras(iss); ED.pageIdx = 0; if(ED.fb){ ED.fb.destroy(); ED.fb = null; }
     renderAll(); switchTab('paginas'); toast('Edição de ' + MONTHS[current.month] + '/' + current.year + ' aberta');
   }
   if(FB_READY){ toast('Abrindo a edição…'); fbLoadIssue(k).then(done).catch(function(e){ console.warn(e); toast('Não foi possível abrir a edição. Tente de novo.'); }); return; }
