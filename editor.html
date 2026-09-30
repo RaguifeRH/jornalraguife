@@ -1446,7 +1446,7 @@ var SEC = {
   saude:           {name:'Saúde', color:'#11808c', icon:'heart', fixed:true,
                     about:'Assunto do mês e os Diálogos de Segurança Psicológica (DSP).'},
   qualidade:       {name:'Qualidade', color:'#739630', icon:'badge', fixed:true,
-                    about:'Assunto do mês, indicadores e fotos.'},
+                    about:'Assunto do mês, números em destaque e as Pílulas de Qualidade.'},
   aniversariantes: {name:'Aniversariantes', color:'#9bcd48', ink:'#01361d', icon:'cake', fixed:true,
                     about:'Quem faz aniversário no mês, com foto e dia.'},
   contra:          {name:'Contracapa', color:'#024f2b', icon:'gift', about:'Portal de benefícios, WhatsApp do RH e aviso de privacidade.'},
@@ -1486,7 +1486,7 @@ function fxDefaults(){
     destaque:{on:true, kicker:'', title:'', subtitle:'', text:'', image:'', caption:'', author:'', gallery:[]},
     seguranca:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[{n:'', l:'dias sem acidente com afastamento'}], items:[]},
     saude:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[], items:[]},
-    qualidade:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[]},
+    qualidade:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[], items:[]},
     aniversariantes:{on:true, title:'', subtitle:'', people:[]},
     contra:{benefUrl:BENEFICIOS_URL, whats:RH_WHATS, whatsTxt:RH_WHATS_TXT, prazo:'até o dia 30 de cada mês'}
   };
@@ -1583,7 +1583,7 @@ function hasContent(sec, d){
     case 'devo': return !!(plain(d.text) || plain(d.verse));
     case 'destaque': return !!(d.title || plain(d.text));
     case 'seguranca': case 'saude': return !!(d.title || plain(d.text) || (d.items || []).length || numsOf(d).length);
-    case 'qualidade': return !!(d.title || plain(d.text) || numsOf(d).length || (d.photos || []).length);
+    case 'qualidade': return !!(d.title || plain(d.text) || numsOf(d).length || (d.photos || []).length || (d.items || []).length);
     case 'aniversariantes': return (d.people || []).length > 0;
   }
   return true;
@@ -1668,6 +1668,10 @@ function demoIssue(){
   iss.qualidade = {on:true, title:'Auditoria de BPF aprovada com 96%', subtitle:'Resultado é o melhor dos últimos três anos e reconhece o cuidado com higiene e rastreabilidade.',
     text:'<p>A auditoria externa de Boas Práticas de Fabricação passou por todas as áreas, do recebimento de grãos à expedição. Os pontos mais elogiados foram a organização do almoxarifado e o registro dos lotes.</p><p>Os dois pontos de melhoria — identificação de utensílios e limpeza das calhas — já estão com plano de ação.</p>',
     photos:[{src:'', cap:'Auditores no recebimento de grãos'},{src:'', cap:'Almoxarifado organizado'},{src:'', cap:'Coleta de amostras no laboratório'}], nums:[{n:'96%', l:'nota na auditoria de BPF'},{n:'0', l:'reclamações de cliente no mês'},{n:'12', l:'melhorias de 5S implantadas'}],
+    items:[
+      {src:'', title:'Identificação correta dos lotes', desc:'Etiqueta legível, data e número do lote em todo saco que sai do ensaque.', date:'2026-09-04', setor:'Ensaque', by:'Juliana Prado, analista da qualidade'},
+      {src:'', title:'Utensílio certo para cada área', desc:'Cores diferentes para pás e baldes de matéria-prima e de produto acabado.', date:'2026-09-18', setor:'Mistura', by:'Juliana Prado'}
+    ],
   };
   iss.aniversariantes = {on:true, title:'', subtitle:'A Raguife deseja um novo ano cheio de saúde, alegria e conquistas.', people:[
     {name:'Carlos Lima', info:'Segurança do Trabalho', day:'3', photo:''},
@@ -1907,16 +1911,7 @@ var FX_RENDER = {
   },
   seguranca:function(s, n, p){ return talksPage('seguranca', s, n, p, 'DDS aplicados no mês', 'Foto do DDS'); },
   saude:function(s, n, p){ return talksPage('saude', s, n, p, 'Diálogos de Segurança Psicológica (DSP)', 'Foto do DSP'); },
-  qualidade:function(q, n, p){
-    var top = band('qualidade', 'Seção fixa · ' + edLabel(CUR), 'Qualidade', numsHTML(q), n);
-    if(p.empty) return {top:top, body:emptyBox('Qualidade')};
-    var ph = topicPhotos(q.photos, '#739630');
-    return {top:top, body:(q.title ? '<h3 class="h-title">' + esc(q.title) + '</h3>' : '')
-      + (q.subtitle ? '<p class="h-sub">' + esc(q.subtitle) + '</p>' : '')
-      + ph.hero
-      + '<div class="txt">' + (q.text || '') + '</div>'
-      + ph.rest};
-  },
+  qualidade:function(q, n, p){ return talksPage('qualidade', q, n, p, 'Pílulas de Qualidade', 'Foto da pílula'); },
   aniversariantes:function(a, n, p){
     var top = band('aniversariantes', 'Parabéns!', 'Aniversariantes de ' + MONTHS[CUR.month], '', n);
     if(p.empty) return {top:top, body:emptyBox('Aniversariantes')};
@@ -2383,10 +2378,11 @@ function changed(key, structural){
 }
 
 /* ---------- 9.2 FORMULÁRIOS DAS SEÇÕES ---------- */
-function talksList(kind, ph){
-  return {k:'items', t:'list', itemName:kind, titleKey:'title', wide:true, addLabel:'Adicionar ' + kind, bulk:true,
+function talksList(kind, ph, o){
+  o = o || {};
+  return {k:'items', t:'list', itemName:kind, titleKey:'title', wide:true, addLabel:o.add || 'Adicionar ' + kind, bulk:true,
     bulkLabel:'Várias fotos de uma vez',
-    empty:'Nenhum ' + kind + ' ainda. Adicione um por vez ou envie várias fotos de uma vez e depois escreva os temas.',
+    empty:(o.none || 'Nenhum ' + kind + ' ainda.') + ' Adicione um por vez ou envie várias fotos de uma vez e depois escreva os temas.',
     item:[{k:'src', t:'image', ratio:'16/9'},
       {k:'title', t:'text', label:'Tema', ph:ph},
       {k:'desc', t:'textarea', rows:2, label:'O que foi falado'},
@@ -2471,7 +2467,9 @@ var F = {
     {k:'photos', t:'gallery', label:'Fotos do assunto', hint:'Pode escolher várias de uma vez. A primeira aparece grande no topo; as outras, depois do texto. Use as setas para mudar a ordem.'},
     {k:'text', t:'rich', label:'Texto'},
     {t:'sep', label:'Números em destaque (opcional)'},
-    numsList('96%', 'nota na auditoria de BPF')
+    numsList('96%', 'nota na auditoria de BPF'),
+    {t:'sep', label:'Pílulas de Qualidade do mês'},
+    talksList('Pílula', 'Ex.: Identificação correta dos lotes', {add:'Adicionar pílula', none:'Nenhuma pílula ainda.'})
   ],
   aniversariantes:[
     {t:'info', html:'Os cartões aparecem em ordem de dia. Coloque só o dia (ex.: 12).'},
@@ -2814,7 +2812,7 @@ function cardInfo(key){
       case 'devo': sub = esc([d.title, d.ref].filter(Boolean).join(' · ')); break;
       case 'seguranca': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DDS'; break;
       case 'saude': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DSP'; break;
-      case 'qualidade': sub = esc(d.title || 'Sem assunto') + (numsOf(d).length ? ' · ' + numsOf(d).length + (numsOf(d).length === 1 ? ' número' : ' números') : ''); break;
+      case 'qualidade': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ((d.items || []).length === 1 ? ' pílula' : ' pílulas'); break;
       case 'aniversariantes': sub = (d.people || []).length + ' aniversariantes'; break;
       default: sub = esc(d.title || '');
     }
@@ -3250,7 +3248,7 @@ function newEditionDialog(){
   var m = (current.month + 1) % 12, y = current.year + (current.month === 11 ? 1 : 0);
   var html = '<div class="row2"><div class="f"><label for="neM">Mês</label><select id="neM">' + MONTHS.map(function(x, i){ return '<option value="' + i + '"' + (i === m ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>'
     + '<div class="f"><label for="neY">Ano</label><input id="neY" type="number" min="2020" max="2100" value="' + y + '"></div></div>'
-    + '<label class="opt"><input type="radio" name="neMode" value="estrutura" checked><div><b>Continuar da edição atual (recomendado)</b><span>Mantém assinaturas, fotos da liderança e as seções ligadas. Limpa os textos, DDS, DSP e aniversariantes.</span></div></label>'
+    + '<label class="opt"><input type="radio" name="neMode" value="estrutura" checked><div><b>Continuar da edição atual (recomendado)</b><span>Mantém assinaturas, fotos da liderança e as seções ligadas. Limpa os textos, DDS, DSP, Pílulas de Qualidade e aniversariantes.</span></div></label>'
     + '<label class="opt"><input type="radio" name="neMode" value="copia"><div><b>Cópia completa</b><span>Copia tudo da edição atual, inclusive textos e fotos.</span></div></label>'
     + '<label class="opt"><input type="radio" name="neMode" value="branco"><div><b>Em branco</b><span>Começa do zero, com todas as seções fixas vazias.</span></div></label>';
   dialog({title:'Nova edição', html:html, buttons:[{label:'Cancelar', value:false},
