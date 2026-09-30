@@ -145,6 +145,13 @@ a{color:inherit}
 .band-num{margin-left:auto;text-align:right;flex:none;max-width:10em;border-radius:.7em;padding:.55em .8em;background:var(--band-num-bg,rgba(255,255,255,.14))}
 @container page (max-width:560px){ .band-num{margin-left:0;flex-basis:100%;max-width:none;text-align:left;display:flex;align-items:center;gap:.7em} .band-num span{margin-top:0} }
 .band-num b{display:block;font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:2.3em;line-height:.9;font-variant-numeric:tabular-nums}
+/* vários números em destaque */
+.band-nums{margin-left:auto;display:flex;flex-wrap:wrap;gap:.5em;justify-content:flex-end}
+.band-nums .band-num{margin-left:0}
+.band-nums.multi{margin-left:0;flex-basis:100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(7.5em,1fr))}
+.band-nums.multi .band-num{max-width:none;text-align:left}
+.band-nums.multi .band-num b{font-size:2em}
+@container page (max-width:560px){ .band-nums{margin-left:0;flex-basis:100%} .band-nums.multi .band-num{display:block} .band-nums.multi .band-num span{margin-top:.3em} }
 .band-num span{display:block;font-size:.68em;font-weight:600;line-height:1.25;margin-top:.3em;opacity:.9}
 
 .h-title{font-family:var(--f-display);font-stretch:78%;font-weight:850;font-size:clamp(1.65em,6.4cqi,2.45em);line-height:1.02;margin:0 0 .35em;text-wrap:balance;letter-spacing:-.005em;color:var(--pg-head,var(--pg-ink))}
@@ -1477,9 +1484,9 @@ function fxDefaults(){
     lider:{on:true, label:'Palavra da Liderança', name:'', role:'', title:'', text:'', photo:''},
     devo:{on:true, title:'', verse:'', ref:'', text:'', name:'', role:'Diretora', photo:''},
     destaque:{on:true, kicker:'', title:'', subtitle:'', text:'', image:'', caption:'', author:'', gallery:[]},
-    seguranca:{on:true, title:'', subtitle:'', text:'', photos:[], num:'', numLabel:'dias sem acidente com afastamento', items:[]},
-    saude:{on:true, title:'', subtitle:'', text:'', photos:[], num:'', numLabel:'', items:[]},
-    qualidade:{on:true, title:'', subtitle:'', text:'', photos:[], kpis:[]},
+    seguranca:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[{n:'', l:'dias sem acidente com afastamento'}], items:[]},
+    saude:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[], items:[]},
+    qualidade:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[]},
     aniversariantes:{on:true, title:'', subtitle:'', people:[]},
     contra:{benefUrl:BENEFICIOS_URL, whats:RH_WHATS, whatsTxt:RH_WHATS_TXT, prazo:'até o dia 30 de cada mês'}
   };
@@ -1497,6 +1504,14 @@ function blankIssue(month, year){
 function ensureExtras(iss){
   if(!iss) return iss;
   var f = fxDefaults();
+  /* edições antigas: um único número (num/numLabel) ou os indicadores da Qualidade (kpis) viram a lista "nums" */
+  ['seguranca','saude','qualidade'].forEach(function(k){
+    var d = iss[k]; if(!d || typeof d !== 'object' || Array.isArray(d.nums)) return;
+    d.nums = [];
+    if(d.num || d.numLabel) d.nums.push({n:d.num || '', l:d.numLabel || ''});
+    if(Array.isArray(d.kpis)) d.kpis.forEach(function(x){ if(x) d.nums.push({n:x.n || '', l:x.l || ''}); });
+    delete d.num; delete d.numLabel; delete d.kpis;
+  });
   Object.keys(f).forEach(function(k){
     /* importante: completa o objeto que já existe, sem substituí-lo.
        Substituir fazia o formulário aberto gravar numa cópia que não era salva. */
@@ -1567,12 +1582,13 @@ function hasContent(sec, d){
     case 'lider': return !!plain(d.text);
     case 'devo': return !!(plain(d.text) || plain(d.verse));
     case 'destaque': return !!(d.title || plain(d.text));
-    case 'seguranca': case 'saude': return !!(d.title || plain(d.text) || (d.items || []).length);
-    case 'qualidade': return !!(d.title || plain(d.text) || (d.kpis || []).length || (d.photos || []).length);
+    case 'seguranca': case 'saude': return !!(d.title || plain(d.text) || (d.items || []).length || numsOf(d).length);
+    case 'qualidade': return !!(d.title || plain(d.text) || numsOf(d).length || (d.photos || []).length);
     case 'aniversariantes': return (d.people || []).length > 0;
   }
   return true;
 }
+function numsOf(d){ return ((d && d.nums) || []).filter(function(x){ return x && String(x.n || '').trim(); }); }
 function fxTitle(sec, d){
   switch(sec){
     case 'lider': return d.title || d.name || '';
@@ -1597,9 +1613,11 @@ function structureCopy(src, month, year){
   c.lider = Object.assign(c.lider, {on:src.lider.on, label:src.lider.label, name:src.lider.name, role:src.lider.role, photo:src.lider.photo});
   c.devo = Object.assign(c.devo, {on:src.devo.on, name:src.devo.name, role:src.devo.role, photo:src.devo.photo});
   c.destaque.on = src.destaque.on;
-  c.seguranca = Object.assign(c.seguranca, {on:src.seguranca.on, numLabel:src.seguranca.numLabel});
-  c.saude = Object.assign(c.saude, {on:src.saude.on, numLabel:src.saude.numLabel});
-  c.qualidade = Object.assign(c.qualidade, {on:src.qualidade.on, kpis:(src.qualidade.kpis || []).map(function(k){ return {n:'', l:k.l}; })});
+  /* números em destaque: mantém o que cada um significa e limpa o valor do mês */
+  function keepLabels(list){ return (list || []).filter(function(x){ return x && x.l; }).map(function(x){ return {n:'', l:x.l}; }); }
+  c.seguranca = Object.assign(c.seguranca, {on:src.seguranca.on, nums:keepLabels(src.seguranca.nums)});
+  c.saude = Object.assign(c.saude, {on:src.saude.on, nums:keepLabels(src.saude.nums)});
+  c.qualidade = Object.assign(c.qualidade, {on:src.qualidade.on, nums:keepLabels(src.qualidade.nums)});
   c.aniversariantes = Object.assign(c.aniversariantes, {on:src.aniversariantes.on, subtitle:src.aniversariantes.subtitle});
   c.contra = clone(src.contra);
   c.order = src.order.filter(function(k){ return k.indexOf('fx:') === 0; });
@@ -1632,7 +1650,7 @@ function demoIssue(){
     gallery:[{src:'', cap:'Montagem do condicionador'},{src:'', cap:'Teste de durabilidade do pélete'},{src:'', cap:'Equipe de manutenção'}]};
   iss.seguranca = {on:true, title:'EPI certo, no lugar certo', subtitle:'A campanha do mês reforça o uso de protetor auricular e luvas nas áreas de moagem e ensaque.',
     text:'<p>O ruído do moinho passa de 90 decibéis. Sem protetor, a perda de audição acontece aos poucos e não tem volta. Por isso, na moagem, o protetor auricular é obrigatório o turno inteiro — inclusive para quem só está de passagem.</p><p>No ensaque, as luvas de vaqueta evitam cortes na costura dos sacos. Se o seu EPI estiver gasto, peça a troca ao técnico de segurança: <b>trocar é rápido e não tem custo</b>.</p>',
-    photos:[{src:'', cap:'Kit de EPIs da moagem'},{src:'', cap:'Placas de sinalização renovadas no ensaque'},{src:'', cap:'Treinamento de uso do protetor auricular'}], num:'287', numLabel:'dias sem acidente com afastamento',
+    photos:[{src:'', cap:'Kit de EPIs da moagem'},{src:'', cap:'Placas de sinalização renovadas no ensaque'},{src:'', cap:'Treinamento de uso do protetor auricular'}], nums:[{n:'287', l:'dias sem acidente com afastamento'},{n:'96', l:'DDS aplicados no ano'},{n:'100%', l:'da equipe treinada em EPI'}],
     items:[
       {src:'', title:'Uso correto do protetor auricular', desc:'Como colocar o plug, quando trocar e por que o abafador não pode ficar no pescoço.', date:'2026-09-02', setor:'Moagem', by:'Carlos Lima, técnico de segurança'},
       {src:'', title:'Empilhadeira e rota de pedestres', desc:'Faixas amarelas, buzina nos cruzamentos e contato visual antes de passar.', date:'2026-09-09', setor:'Expedição', by:'Carlos Lima'},
@@ -1641,7 +1659,7 @@ function demoIssue(){
     ]};
   iss.saude = {on:true, title:'Setembro Amarelo: falar é cuidar', subtitle:'Saúde mental também é saúde. Conversamos sobre sinais de alerta e onde buscar ajuda.',
     text:'<p>Tristeza que não passa, isolamento e mudança de sono merecem atenção. Se perceber isso em você ou num colega, puxe conversa e ofereça ajuda sem julgamento.</p><p>O <b>CVV atende pelo telefone 188</b>, 24 horas, de graça. No RH, a porta está sempre aberta para conversar com sigilo.</p>',
-    photos:[{src:'', cap:'Roda de conversa do Setembro Amarelo'},{src:'', cap:'Laço amarelo na entrada da fábrica'}], num:'142', numLabel:'colaboradores vacinados contra a gripe',
+    photos:[{src:'', cap:'Roda de conversa do Setembro Amarelo'},{src:'', cap:'Laço amarelo na entrada da fábrica'}], nums:[{n:'142', l:'colaboradores vacinados contra a gripe'},{n:'38', l:'participantes nos DSP do mês'}],
     items:[
       {src:'', title:'Errar, avisar e aprender', desc:'Por que contar um erro logo evita acidentes e retrabalho, e como o líder deve receber o aviso.', date:'2026-09-05', setor:'Produção', by:'Rafael Souza, supervisor'},
       {src:'', title:'Pedir ajuda não é fraqueza', desc:'Frases simples para pedir apoio no turno e como acolher quem pede.', date:'2026-09-12', setor:'Expedição', by:'Marina Alves, RH'},
@@ -1649,7 +1667,7 @@ function demoIssue(){
     ]};
   iss.qualidade = {on:true, title:'Auditoria de BPF aprovada com 96%', subtitle:'Resultado é o melhor dos últimos três anos e reconhece o cuidado com higiene e rastreabilidade.',
     text:'<p>A auditoria externa de Boas Práticas de Fabricação passou por todas as áreas, do recebimento de grãos à expedição. Os pontos mais elogiados foram a organização do almoxarifado e o registro dos lotes.</p><p>Os dois pontos de melhoria — identificação de utensílios e limpeza das calhas — já estão com plano de ação.</p>',
-    photos:[{src:'', cap:'Auditores no recebimento de grãos'},{src:'', cap:'Almoxarifado organizado'},{src:'', cap:'Coleta de amostras no laboratório'}], kpis:[{n:'96%', l:'nota na auditoria de BPF'},{n:'0', l:'reclamações de cliente no mês'},{n:'12', l:'melhorias de 5S implantadas'}],
+    photos:[{src:'', cap:'Auditores no recebimento de grãos'},{src:'', cap:'Almoxarifado organizado'},{src:'', cap:'Coleta de amostras no laboratório'}], nums:[{n:'96%', l:'nota na auditoria de BPF'},{n:'0', l:'reclamações de cliente no mês'},{n:'12', l:'melhorias de 5S implantadas'}],
   };
   iss.aniversariantes = {on:true, title:'', subtitle:'A Raguife deseja um novo ano cheio de saúde, alegria e conquistas.', people:[
     {name:'Carlos Lima', info:'Segurança do Trabalho', day:'3', photo:''},
@@ -1890,16 +1908,14 @@ var FX_RENDER = {
   seguranca:function(s, n, p){ return talksPage('seguranca', s, n, p, 'DDS aplicados no mês', 'Foto do DDS'); },
   saude:function(s, n, p){ return talksPage('saude', s, n, p, 'Diálogos de Segurança Psicológica (DSP)', 'Foto do DSP'); },
   qualidade:function(q, n, p){
-    var top = band('qualidade', 'Seção fixa · ' + edLabel(CUR), 'Qualidade', '', n);
+    var top = band('qualidade', 'Seção fixa · ' + edLabel(CUR), 'Qualidade', numsHTML(q), n);
     if(p.empty) return {top:top, body:emptyBox('Qualidade')};
-    var k = (q.kpis || []).filter(function(x){ return x && (x.n || x.l); });
     var ph = topicPhotos(q.photos, '#739630');
     return {top:top, body:(q.title ? '<h3 class="h-title">' + esc(q.title) + '</h3>' : '')
       + (q.subtitle ? '<p class="h-sub">' + esc(q.subtitle) + '</p>' : '')
       + ph.hero
       + '<div class="txt">' + (q.text || '') + '</div>'
-      + ph.rest
-      + (k.length ? hBlock('Indicadores do mês') + '<div class="kpis">' + k.map(function(x){ return '<div class="kpi"><b>' + esc(x.n) + '</b><span>' + esc(x.l) + '</span></div>'; }).join('') + '</div>' : '')};
+      + ph.rest};
   },
   aniversariantes:function(a, n, p){
     var top = band('aniversariantes', 'Parabéns!', 'Aniversariantes de ' + MONTHS[CUR.month], '', n);
@@ -1915,10 +1931,16 @@ var FX_RENDER = {
         }).join('') + '</div>'};
   }
 };
+/* números em destaque no topo da página (1 = ao lado do título; 2 ou mais = faixa própria) */
+function numsHTML(d){
+  var L = numsOf(d); if(!L.length) return '';
+  return '<div class="band-nums' + (L.length > 1 ? ' multi' : '') + '">' + L.map(function(x){
+    return '<div class="band-num"><b>' + esc(x.n) + '</b>' + (x.l ? '<span>' + esc(x.l) + '</span>' : '') + '</div>';
+  }).join('') + '</div>';
+}
 function talksPage(sec, s, n, p, listLabel, phLabel){
   var color = SEC[sec].color;
-  var num = s.num ? '<div class="band-num"><b>' + esc(s.num) + '</b><span>' + esc(s.numLabel || '') + '</span></div>' : '';
-  var top = band(sec, 'Seção fixa · ' + edLabel(CUR), SEC[sec].name, num, n);
+  var top = band(sec, 'Seção fixa · ' + edLabel(CUR), SEC[sec].name, numsHTML(s), n);
   if(p.empty) return {top:top, body:emptyBox(SEC[sec].name)};
   var items = (s.items || []).filter(function(it){ return it && (it.title || it.src || it.desc); });
   var ph = topicPhotos(s.photos, color);
@@ -2371,6 +2393,12 @@ function talksList(kind, ph){
       {row:[{k:'date', t:'date', label:'Data'}, {k:'setor', t:'text', label:'Setor', ph:'Ex.: Moagem'}]},
       {k:'by', t:'text', label:'Quem aplicou', ph:'Nome e função'}]};
 }
+function numsList(phN, phL){
+  return {k:'nums', t:'list', itemName:'Número', titleKey:'l', addLabel:'Adicionar número',
+    hint:'Aparecem no topo da página. Cabem bem até 4. Número sem valor não aparece.',
+    empty:'Nenhum número em destaque.',
+    item:[{row:[{k:'n', t:'text', label:'Número', ph:'Ex.: ' + phN}, {k:'l', t:'text', label:'O que ele significa', ph:'Ex.: ' + phL}]}]};
+}
 function peopleList(label, ph, extra, opts){
   opts = opts || {};
   return Object.assign({k:'people', t:'list', label:label, itemName:'Pessoa', titleKey:'name', addLabel:'Adicionar pessoa', bulk:true,
@@ -2421,8 +2449,8 @@ var F = {
     {k:'subtitle', t:'textarea', rows:2, label:'Resumo', ph:'Uma ou duas frases sobre o assunto'},
     {k:'photos', t:'gallery', label:'Fotos do assunto', hint:'Pode escolher várias de uma vez. A primeira aparece grande no topo; as outras, depois do texto. Use as setas para mudar a ordem.'},
     {k:'text', t:'rich', label:'Texto'},
-    {t:'sep', label:'Número em destaque (opcional)'},
-    {row:[{k:'num', t:'text', label:'Número', ph:'Ex.: 287'}, {k:'numLabel', t:'text', label:'O que ele significa', ph:'dias sem acidente com afastamento'}]},
+    {t:'sep', label:'Números em destaque (opcional)'},
+    numsList('287', 'dias sem acidente com afastamento'),
     {t:'sep', label:'DDS aplicados no mês'},
     talksList('DDS', 'Ex.: Uso correto do protetor auricular')
   ],
@@ -2432,8 +2460,8 @@ var F = {
     {k:'subtitle', t:'textarea', rows:2, label:'Resumo'},
     {k:'photos', t:'gallery', label:'Fotos do assunto', hint:'Pode escolher várias de uma vez. A primeira aparece grande no topo; as outras, depois do texto. Use as setas para mudar a ordem.'},
     {k:'text', t:'rich', label:'Texto'},
-    {t:'sep', label:'Número em destaque (opcional)'},
-    {row:[{k:'num', t:'text', label:'Número', ph:'Ex.: 142'}, {k:'numLabel', t:'text', label:'O que ele significa', ph:'Ex.: vacinados contra a gripe'}]},
+    {t:'sep', label:'Números em destaque (opcional)'},
+    numsList('142', 'vacinados contra a gripe'),
     {t:'sep', label:'DSP · Diálogos de Segurança Psicológica'},
     talksList('DSP', 'Ex.: Pedir ajuda não é fraqueza')
   ],
@@ -2442,9 +2470,8 @@ var F = {
     {k:'subtitle', t:'textarea', rows:2, label:'Resumo'},
     {k:'photos', t:'gallery', label:'Fotos do assunto', hint:'Pode escolher várias de uma vez. A primeira aparece grande no topo; as outras, depois do texto. Use as setas para mudar a ordem.'},
     {k:'text', t:'rich', label:'Texto'},
-    {t:'sep', label:'Indicadores do mês'},
-    {k:'kpis', t:'list', itemName:'Indicador', titleKey:'l', addLabel:'Adicionar indicador', empty:'Nenhum indicador.',
-      item:[{row:[{k:'n', t:'text', label:'Número', ph:'96%'}, {k:'l', t:'text', label:'Descrição', ph:'nota na auditoria'}]}]}
+    {t:'sep', label:'Números em destaque (opcional)'},
+    numsList('96%', 'nota na auditoria de BPF')
   ],
   aniversariantes:[
     {t:'info', html:'Os cartões aparecem em ordem de dia. Coloque só o dia (ex.: 12).'},
@@ -2763,7 +2790,7 @@ function isEmptyItem(it){
   return !Object.keys(it).some(function(k){ var v = it[k]; return Array.isArray(v) ? v.length : (typeof v === 'string' ? v.trim() : false); });
 }
 function cleanLists(obj){
-  ['items','people','quotes','kpis'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].filter(function(x){ return !isEmptyItem(x); }); });
+  ['items','people','quotes','kpis','nums'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].filter(function(x){ return !isEmptyItem(x); }); });
   ['gallery','images'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].map(normImg).filter(function(g){ return g.src || g.cap; }); });
 }
 
@@ -2787,7 +2814,7 @@ function cardInfo(key){
       case 'devo': sub = esc([d.title, d.ref].filter(Boolean).join(' · ')); break;
       case 'seguranca': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DDS'; break;
       case 'saude': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DSP'; break;
-      case 'qualidade': sub = esc(d.title || 'Sem assunto') + ((d.kpis || []).length ? ' · ' + d.kpis.length + ' indicadores' : ''); break;
+      case 'qualidade': sub = esc(d.title || 'Sem assunto') + (numsOf(d).length ? ' · ' + numsOf(d).length + (numsOf(d).length === 1 ? ' número' : ' números') : ''); break;
       case 'aniversariantes': sub = (d.people || []).length + ' aniversariantes'; break;
       default: sub = esc(d.title || '');
     }
