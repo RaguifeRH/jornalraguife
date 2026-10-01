@@ -203,6 +203,34 @@ a{color:inherit}
 .kpi b{display:block;font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:2.1em;line-height:.95;font-variant-numeric:tabular-nums}
 .kpi span{display:block;font-size:.76em;line-height:1.3;margin-top:.4em;opacity:.92}
 
+/* painel de produção: anel da meta (verde) + rosca por família (claro) */
+.prd{display:grid;grid-template-columns:1fr;margin:.3em 0 .2em;border-radius:var(--r-m);overflow:hidden;font-variant-numeric:tabular-nums}
+@container page (min-width:640px){ .prd{grid-template-columns:repeat(2,minmax(0,1fr))} .prd.one{grid-template-columns:1fr} }
+.prd-k{display:block;font-size:.66em;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.prd-meta{background:#024f2b;color:#fff;padding:1.3em 1.2em 1.2em;display:flex;flex-direction:column;gap:1.1em}
+.prd-meta .prd-k{color:#9bcd48}
+.prd-ring,.prd-donut{display:flex;align-items:center;gap:1.1em;flex-wrap:wrap}
+.prd-ring svg,.prd-donut svg{width:8em;height:8em;flex:none;display:block}
+.prd-vals{display:flex;flex-direction:column;gap:.8em;min-width:0}
+.prd-vals span{display:block;font-size:.72em;font-weight:600;color:#cfe3d4}
+.prd-vals b{display:block;font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:1.75em;line-height:1.05}
+.prd-vals b.sm{font-size:1.3em;font-weight:800}
+.prd-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6em;margin-top:auto;padding-top:.9em;border-top:1px solid rgba(255,255,255,.18)}
+.prd-stats span{display:block;font-size:.58em;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#9bcd48}
+.prd-stats b{display:block;font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:1.4em;line-height:1.1;margin-top:.15em}
+.prd-fam{background:#f2f5f0;color:#024f2b;padding:1.3em 1.2em 1.2em;display:flex;flex-direction:column;gap:1.1em}
+.prd-fam .prd-k{color:#666}
+.prd-donut span{display:block;font-size:.72em;font-weight:600;color:#666}
+.prd-donut b{display:block;font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:1.5em;line-height:1.05}
+.prd-tb{display:flex;flex-direction:column;gap:.75em}
+.prd-row{display:grid;grid-template-columns:.8em minmax(0,1fr) 5.6em 3.6em;gap:.65em;align-items:center}
+.prd-row.hd span{font-size:.58em;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#666}
+.prd-row.hd span:last-child,.prd-row .kgh{text-align:right}
+.prd-sw{width:.8em;height:.8em}
+.prd-row b{display:block;font-size:.9em;line-height:1.2}
+.prd-row small{display:block;font-size:.7em;color:#666;line-height:1.3}
+.prd-row .kgh{font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:1.15em}
+
 /* pessoas: cartões retangulares */
 .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:.8em}
 @container page (min-width:520px){ .cards{grid-template-columns:repeat(3,1fr)} }
@@ -801,7 +829,7 @@ input:disabled,textarea:disabled,select:disabled{background:#f1f4f0;color:#7a857
   .pg::before,.pg-shade{display:none!important}
   .pg-scroll{position:relative!important;inset:auto!important;overflow:visible!important}
   .th-capa .cv{min-height:95vh}
-  .talk,.pcard,.art,.album,.kpi{break-inside:avoid}
+  .talk,.pcard,.art,.album,.kpi,.prd{break-inside:avoid}
 }
 @media (prefers-reduced-motion:reduce){
   .book-hint.show{animation:none}
@@ -1428,7 +1456,7 @@ function restoreToCloud(data){
    ===================================================================== */
 var MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 var MONTHS_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-var CATEGORIES = ['Aconteceu na Raguife','Nossa Gente','Recursos Humanos','Treinamentos','Produção','Eventos',
+var CATEGORIES = ['Aconteceu na Raguife','Destaques','Nossa Gente','Recursos Humanos','Treinamentos','Produção','Eventos',
   'Endomarketing','Projetos','Benefícios','Comunicados','Responsabilidade Social','5S','BPF','Novidades','Outros'];
 
 /* identidade de cada tipo de página: nome, cor e ícone */
@@ -1455,6 +1483,7 @@ var SEC = {
   galeria:     {name:'Galeria de fotos', color:'#56645a', icon:'image', about:'Várias fotos com legendas.'},
   frase:       {name:'Frase de destaque', color:'#5c7a22', icon:'quote', about:'Uma página inteira para uma frase marcante.'},
   indicadores: {name:'Indicadores', color:'#56645a', icon:'chart', about:'Números do mês em destaque.'},
+  producao:    {name:'Painel de produção', color:'#024f2b', icon:'chart', about:'Produção x meta, paradas e produção por família, com gráficos.'},
   cultura:     {name:'Nossa Cultura', color:'#036c3b', icon:'sprout', about:'Um setor em foco: o que faz, equipe e depoimentos.'},
   pessoas:     {name:'Pessoas com foto', color:'#7aa53a', icon:'users', about:'Novos colaboradores, tempo de casa, formandos…'},
   nascimentos: {name:'Nascimentos', color:'#7aa53a', icon:'baby', about:'Bebês da família Raguife (com autorização).'},
@@ -1462,7 +1491,7 @@ var SEC = {
   promocoes:   {name:'Promoções', color:'#7aa53a', icon:'up', about:'Quem assumiu um novo cargo.'}
 };
 var FIXED_KEYS = ['lider','devo','destaque','seguranca','saude','qualidade','aniversariantes'];
-var BLOCK_TYPES = ['materia','galeria','cultura','frase','indicadores','pessoas','nascimentos','casamentos','promocoes'];
+var BLOCK_TYPES = ['materia','galeria','cultura','frase','indicadores','producao','pessoas','nascimentos','casamentos','promocoes'];
 
 /* blocos de pessoas */
 var PEOPLE_META = {
@@ -1570,6 +1599,9 @@ function newBlock(type){
   if(isPeopleType(type)){ b.category = PEOPLE_META[type].label; b.title = PEOPLE_META[type].title; b.subtitle = ''; b.people = [];
     b.style = PEOPLE_META[type].style === 'albums' ? 'cards' : PEOPLE_META[type].style; }
   if(type === 'indicadores'){ b.category = 'Aconteceu na Raguife'; b.title = 'Números do mês'; b.kpis = []; }
+  if(type === 'producao'){ b.category = 'Destaques'; b.title = 'Números do mês'; b.unit = 'kg'; b.produzido = ''; b.meta = '';
+    b.paradas = ''; b.turno = ''; b.apont = '';
+    b.fams = ['AQUA','PET','HORSE'].map(function(n){ return {nome:n, kg:'', horas:'', sem:'', kgh:''}; }); }
   if(type === 'cultura'){ b.category = 'Nossa Cultura'; b.sector = ''; b.title = ''; b.text = ''; b.image = ''; b.caption = ''; b.gallery = []; b.people = []; b.quotes = []; }
   return b;
 }
@@ -1772,6 +1804,73 @@ function catColor(cat, type){
   if(/humano|\brh\b|benef/.test(c)) return '#6b5bb5';
   if(/gente|anivers|nascim|casam|promo|colaborador|boas-vindas/.test(c) || isPeopleType(type)) return '#6f9a32';
   return '#024f2b';
+}
+
+/* ---------- painel de produção (anel da meta + rosca por família) ---------- */
+var PRD_COLORS = ['#024f2b','#9bcd48','#739630','#0a7a47','#5c7a22','#c8ea8f'];
+/* lê número escrito em português: "7.561.624,7" → 7561624.7 */
+function numBR(s){
+  s = String(s == null ? '' : s).trim().replace(/[^\d,.\-]/g, ''); if(!s) return NaN;
+  if(s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  else if(/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  return parseFloat(s);
+}
+function fmtBR(n, dec){ return isFinite(n) ? n.toLocaleString('pt-BR', {minimumFractionDigits:dec || 0, maximumFractionDigits:dec || 0}) : ''; }
+function pctTxt(p){ return !isFinite(p) ? '' : (p > 0 && p < 1 ? '<1%' : Math.round(p) + '%'); }
+/* anel em SVG: cada parte vira um arco proporcional ao total */
+function ringSVG(o){
+  var C = 565.49, off = 0, gap = o.parts.length > 1 ? 2 : 0;
+  var arcs = o.parts.map(function(p){
+    var len = o.total > 0 ? C * Math.min(Math.max(p.v, 0), o.total) / o.total : 0, s = '';
+    if(len > .5) s = '<circle cx="110" cy="110" r="90" stroke="' + p.c + '" stroke-dasharray="' + Math.max(.5, len - gap).toFixed(1) + ' ' + C + '" stroke-dashoffset="' + (-off).toFixed(1) + '"></circle>';
+    off += len; return s;
+  }).join('');
+  var font = 'font-family="Archivo, Arial Narrow, Arial, sans-serif" text-anchor="middle"';
+  return '<svg viewBox="0 0 220 220" role="img" aria-label="' + esc(o.label) + '">'
+    + '<g transform="rotate(-90 110 110)" fill="none" stroke-width="30">'
+    + (o.track ? '<circle cx="110" cy="110" r="90" stroke="' + o.track + '"></circle>' : '') + arcs + '</g>'
+    + '<text x="110" y="' + (o.small ? 116 : 126) + '" ' + font + ' font-size="48" font-weight="900" font-stretch="75%" fill="' + o.ink + '">' + esc(o.big) + '</text>'
+    + (o.small ? '<text x="110" y="142" ' + font + ' font-size="15" font-weight="600" fill="' + o.ink2 + '">' + esc(o.small) + '</text>' : '')
+    + '</svg>';
+}
+function prodHTML(b){
+  var u = b.unit || 'kg';
+  var prod = numBR(b.produzido), meta = numBR(b.meta), pct = prod / meta * 100;
+  var fams = (b.fams || []).filter(function(f){ return f && (String(f.nome || '').trim() || String(f.kg || '').trim()); }).map(function(f, i){
+    var kg = numBR(f.kg), h = numBR(f.horas), kgh = numBR(f.kgh);
+    if(!isFinite(kgh) && isFinite(kg) && h > 0) kgh = kg / h;
+    return {nome:f.nome || 'Família ' + (i + 1), kgTxt:String(f.kg || '').trim(), kg:isFinite(kg) ? kg : 0, hTxt:String(f.horas || '').trim(), h:isFinite(h) ? h : 0,
+      sem:String(f.sem || '').trim(), kgh:kgh, c:PRD_COLORS[i % PRD_COLORS.length]};
+  });
+  var totKg = 0, totH = 0; fams.forEach(function(f){ totKg += f.kg; totH += f.h; });
+  var apont = String(b.apont || '').trim(); if(/^\d+$/.test(apont)) apont = fmtBR(+apont);
+  var stats = [['Paradas', b.paradas], ['Melhor turno', b.turno], ['Apontamentos', apont]].filter(function(s){ return String(s[1] || '').trim(); });
+  var left = '', right = '';
+  if(b.produzido || b.meta || stats.length){
+    left = '<div class="prd-meta"><span class="prd-k">Produção x meta</span>'
+      + '<div class="prd-ring">' + (isFinite(pct) ? ringSVG({track:'#1c6542', parts:[{v:prod, c:'#9bcd48'}], total:meta, big:pctTxt(pct), small:'aderência', ink:'#fff', ink2:'#fff', label:'Aderência à meta: ' + pctTxt(pct)}) : '')
+      + '<div class="prd-vals">' + (b.produzido ? '<div><span>Produzido</span><b>' + esc(b.produzido) + ' ' + esc(u) + '</b></div>' : '')
+      + (b.meta ? '<div><span>Meta acumulada</span><b class="sm">' + esc(b.meta) + ' ' + esc(u) + '</b></div>' : '') + '</div></div>'
+      + (stats.length ? '<div class="prd-stats">' + stats.map(function(s){ return '<div><span>' + s[0] + '</span><b>' + esc(s[1]) + '</b></div>'; }).join('') + '</div>' : '')
+      + '</div>';
+  }
+  if(fams.length){
+    var top = fams.slice().sort(function(a, c){ return c.kg - a.kg; })[0];
+    right = '<div class="prd-fam"><span class="prd-k">Produção por família</span>'
+      + '<div class="prd-donut">' + (totKg > 0 ? ringSVG({parts:fams.map(function(f){ return {v:f.kg, c:f.c}; }), total:totKg, big:pctTxt(top.kg / totKg * 100), small:top.nome, ink:'#024f2b', ink2:'#666666',
+          label:'Produção por família: ' + fams.map(function(f){ return f.nome + ' ' + pctTxt(f.kg / totKg * 100); }).join(', ')}) : '')
+      + (totH > 0 ? '<div><span>Total de horas disponíveis</span><b>' + fmtBR(totH, 1) + ' h</b></div>' : '') + '</div>'
+      + '<div class="prd-tb"><div class="prd-row hd"><i></i><span>Família</span><span>Horas disp.</span><span>' + esc(u) + '/h</span></div>'
+      + fams.map(function(f){
+          var info = [f.kgTxt ? f.kgTxt + ' ' + u : '', totKg > 0 ? pctTxt(f.kg / totKg * 100) : ''].filter(Boolean).join(' · ');
+          return '<div class="prd-row"><i class="prd-sw" style="background:' + f.c + '"></i>'
+            + '<div><b>' + esc(f.nome) + '</b>' + (info ? '<small>' + esc(info) + '</small>' : '') + '</div>'
+            + '<div><b>' + (f.hTxt ? esc(f.hTxt) + ' h' : '—') + '</b>' + (f.sem ? '<small>' + esc(f.sem) + ' h sem apont.</small>' : '') + '</div>'
+            + '<span class="kgh">' + (isFinite(f.kgh) ? fmtBR(f.kgh) : '—') + '</span></div>';
+        }).join('') + '</div></div>';
+  }
+  if(!left && !right) return RO.preview ? '<div class="empty-pg"><b>Painel vazio</b>Preencha a produção e as famílias no editor.</div>' : '';
+  return '<div class="prd' + (left && right ? '' : ' one') + '">' + left + right + '</div>';
 }
 
 /* ---------- lista de páginas ---------- */
@@ -1984,6 +2083,9 @@ function newsHTML(p, n){
 function articleHTML(b){
   var color = catColor(b.category, b.type);
   var pill = '<span class="pill" style="--pc:' + color + '">' + esc(b.category || 'Raguife') + '</span>';
+  if(b.type === 'producao'){
+    return '<div class="art">' + (b.title ? '<h3>' + esc(b.title) + '</h3>' : '') + prodHTML(b) + '</div>';
+  }
   if(b.type === 'indicadores'){
     var k = (b.kpis || []).filter(function(x){ return x.n || x.l; });
     return '<div class="art">' + (b.title ? '<h3>' + esc(b.title) + '</h3>' : '')
@@ -2513,6 +2615,20 @@ var F = {
     {k:'kpis', t:'list', itemName:'Número', titleKey:'l', addLabel:'Adicionar número', empty:'Nenhum número.',
       item:[{row:[{k:'n', t:'text', label:'Número', ph:'1.250 t'}, {k:'l', t:'text', label:'Descrição', ph:'ração produzida'}]}]}
   ],
+  b_producao:[
+    {t:'info', html:'Digite os números como aparecem no relatório (ex.: 7.561.624,7). A aderência, as porcentagens, o kg/h e os gráficos são calculados sozinhos.'},
+    {row:[{k:'category', t:'category', label:'Assunto da página', structural:true}, {k:'title', t:'text', label:'Título', ph:'Números do mês'}]},
+    {t:'sep', label:'Produção x meta'},
+    {row:[{k:'produzido', t:'text', label:'Total produzido', ph:'7.561.624,7'}, {k:'meta', t:'text', label:'Meta acumulada', ph:'9.610.100'}]},
+    {row:[{k:'unit', t:'text', label:'Unidade', ph:'kg'}, {k:'turno', t:'text', label:'Melhor turno', ph:'T2'}]},
+    {row:[{k:'paradas', t:'text', label:'Total de paradas', ph:'406:58 h'}, {k:'apont', t:'text', label:'Apontamentos', ph:'1485'}]},
+    {t:'sep', label:'Produção por família'},
+    {k:'fams', t:'list', itemName:'Família', titleKey:'nome', addLabel:'Adicionar família', empty:'Nenhuma família.',
+      hint:'A rosca mostra quanto cada família representa do total. Deixe “kg/h” vazio para calcular (produzido ÷ horas).',
+      item:[{row:[{k:'nome', t:'text', label:'Família', ph:'AQUA'}, {k:'kg', t:'text', label:'Produzido', ph:'7.027.879,7'}]},
+            {row:[{k:'horas', t:'text', label:'Horas disponíveis', ph:'1.248,0'}, {k:'sem', t:'text', label:'Horas sem apontamento', ph:'29,3'}]},
+            {k:'kgh', t:'text', label:'kg/h (opcional)', ph:'Calculado se ficar vazio'}]}
+  ],
   b_cultura:[
     {t:'info', html:'Um setor em foco por mês: o que faz, por que importa, a equipe e o que as pessoas têm a dizer.'},
     {k:'sector', t:'text', label:'Setor ou tema em foco', ph:'Ex.: Fábrica de Rações', structural:true},
@@ -2788,7 +2904,7 @@ function isEmptyItem(it){
   return !Object.keys(it).some(function(k){ var v = it[k]; return Array.isArray(v) ? v.length : (typeof v === 'string' ? v.trim() : false); });
 }
 function cleanLists(obj){
-  ['items','people','quotes','kpis','nums'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].filter(function(x){ return !isEmptyItem(x); }); });
+  ['items','people','quotes','kpis','nums','fams'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].filter(function(x){ return !isEmptyItem(x); }); });
   ['gallery','images'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].map(normImg).filter(function(g){ return g.src || g.cap; }); });
 }
 
@@ -2824,6 +2940,8 @@ function cardInfo(key){
     case 'galeria': n = (b.images || []).length; title = b.title || 'Galeria de fotos'; sub2 = esc(b.category || '') + ' · ' + n + (n === 1 ? ' foto' : ' fotos'); break;
     case 'frase': title = 'Frase de destaque'; sub2 = esc(b.quote || 'Sem frase'); break;
     case 'indicadores': title = b.title || 'Indicadores'; sub2 = (b.kpis || []).length + ' números'; break;
+    case 'producao': title = b.title || 'Painel de produção';
+      sub2 = esc(b.category || 'Painel de produção') + (b.produzido ? ' · ' + esc(b.produzido) + ' ' + esc(b.unit || 'kg') : ' · <span class="empty">sem números</span>'); break;
     case 'cultura': title = 'Nossa Cultura'; sub2 = esc(b.sector || 'Defina o setor'); break;
     default:
       n = (b.people || []).length; title = b.category || SEC[t].name; sub2 = n + (n === 1 ? ' pessoa' : ' pessoas');
@@ -2971,6 +3089,7 @@ function validateDrawer(c){
     case 'frase': return b.quote ? '' : 'Escreva a frase.';
     case 'cultura': return b.sector ? '' : 'Informe o setor ou tema em foco.';
     case 'indicadores': return (b.kpis || []).some(function(k){ return k.n; }) ? '' : 'Adicione pelo menos um número.';
+    case 'producao': return (String(b.produzido || '').trim() || (b.fams || []).some(function(f){ return String(f.kg || '').trim(); })) ? '' : 'Preencha o total produzido ou a produção de pelo menos uma família.';
     default:
       if(!b.category) return 'Dê um nome para a seção (ex.: Novos colaboradores).';
       return (b.people || []).some(function(p){ return p.name; }) ? '' : 'Adicione pelo menos uma pessoa com nome.';
