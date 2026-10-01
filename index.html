@@ -197,6 +197,25 @@ a{color:inherit}
 .talk-by{font-size:.72em;font-weight:700;color:var(--pg-muted);margin-top:.2em}
 .talk.nodate .talk-date{display:none}
 
+/* ranking (setor ou gestor destaque em DDS, DSP ou 5S) */
+.rank{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.55em}
+.rk{display:flex;align-items:center;gap:.8em;background:var(--pg-card,#fff);border-radius:var(--r-m);padding:.7em .9em;box-shadow:0 1px 0 rgba(0,0,0,.05),0 6px 18px rgba(0,0,0,.06)}
+.rk-pos{flex:none;width:2.4em;height:2.4em;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:1em;background:var(--pg-card-alt);color:var(--pg-accent-t,var(--pg-accent))}
+.rk .ph-box{width:3em;height:3em;border-radius:50%;overflow:hidden;flex:none;position:relative;background:var(--pg-card-alt)}
+.rk .ph-box img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.rk .ini{position:absolute;inset:0;display:grid;place-items:center;font-weight:900;color:var(--pg-accent-t,var(--pg-accent));opacity:.7}
+.rk-t{flex:1;min-width:0}
+.rk-t b{display:block;font-size:1em;line-height:1.25;color:var(--pg-head,var(--pg-ink))}
+.rk-t span{display:block;font-size:.78em;line-height:1.3;color:var(--pg-muted);margin-top:.1em}
+.rk-k{display:inline-flex;align-items:center;gap:.35em;font-size:.66em;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--pg-accent-t,var(--pg-accent));margin-bottom:.25em}
+.rk-val{flex:none;max-width:7.5em;text-align:right;font-family:var(--f-display);font-stretch:75%;font-weight:900;font-size:1.25em;line-height:1.05;color:var(--pg-accent-t,var(--pg-accent))}
+.rk.first{padding:1em 1.1em;border:2px solid var(--pg-chip)}
+.rk.first .rk-pos{width:3em;height:3em;font-size:1.15em;background:var(--pg-chip);color:var(--pg-chip-ink)}
+.rk.first .ph-box{width:3.8em;height:3.8em}
+.rk.first .rk-t b{font-size:1.15em}
+.rk.first .rk-val{font-size:1.6em}
+@container page (max-width:420px){ .rk .ph-box{display:none} }
+
 /* indicadores */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5em,1fr));gap:.6em;margin:.2em 0 .4em}
 .kpi{background:var(--kpi-bg,var(--g800));color:var(--kpi-ink,#fff);border-radius:var(--r-m);padding:.95em .9em}
@@ -829,7 +848,7 @@ input:disabled,textarea:disabled,select:disabled{background:#f1f4f0;color:#7a857
   .pg::before,.pg-shade{display:none!important}
   .pg-scroll{position:relative!important;inset:auto!important;overflow:visible!important}
   .th-capa .cv{min-height:95vh}
-  .talk,.pcard,.art,.album,.kpi,.prd{break-inside:avoid}
+  .talk,.pcard,.art,.album,.kpi,.prd,.rk{break-inside:avoid}
 }
 @media (prefers-reduced-motion:reduce){
   .book-hint.show{animation:none}
@@ -1085,6 +1104,7 @@ var ICONS = {
   calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   chevDown:'<path d="M6 9l6 6 6-6"/>', check:'<path d="M5 12l5 5 9-10"/>',
   sort:'<path d="M7 4v16M3.5 16.5L7 20l3.5-3.5M17 20V4M13.5 7.5L17 4l3.5 3.5"/>',
+  trophy:'<path d="M8 21h8M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 6h3v1a3 3 0 0 1-3 3M7 6H4v1a3 3 0 0 0 3 3"/>',
   folder:'<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
 };
 function ic(name, cls){
@@ -1470,11 +1490,11 @@ var SEC = {
   destaque:        {name:'Destaque', color:'#0a7a47', icon:'star', fixed:true,
                     about:'A matéria principal da edição, com foto grande.'},
   seguranca:       {name:'Segurança do Trabalho', short:'Segurança', color:'#f2b300', ink:'#1b1f16', icon:'helmet', fixed:true,
-                    about:'Assunto do mês e a galeria dos DDS aplicados.'},
+                    about:'Assunto do mês, os DDS aplicados e o ranking (opcional).'},
   saude:           {name:'Saúde', color:'#11808c', icon:'heart', fixed:true,
-                    about:'Assunto do mês e os Diálogos de Segurança Psicológica (DSP).'},
+                    about:'Assunto do mês, os DSP e o ranking (opcional).'},
   qualidade:       {name:'Qualidade', color:'#739630', icon:'badge', fixed:true,
-                    about:'Assunto do mês, números em destaque e as Pílulas de Qualidade.'},
+                    about:'Assunto do mês, números, Pílulas de Qualidade e ranking do 5S (opcional).'},
   aniversariantes: {name:'Aniversariantes', color:'#9bcd48', ink:'#01361d', icon:'cake', fixed:true,
                     about:'Quem faz aniversário no mês, com foto e dia.'},
   contra:          {name:'Contracapa', color:'#024f2b', icon:'gift', about:'Portal de benefícios, WhatsApp do RH e aviso de privacidade.'},
@@ -1513,9 +1533,9 @@ function fxDefaults(){
     lider:{on:true, label:'Palavra da Liderança', name:'', role:'', title:'', text:'', photo:''},
     devo:{on:true, title:'', verse:'', ref:'', text:'', name:'', role:'Diretora', photo:''},
     destaque:{on:true, kicker:'', title:'', subtitle:'', text:'', image:'', caption:'', author:'', gallery:[]},
-    seguranca:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[{n:'', l:'dias sem acidente com afastamento'}], items:[]},
-    saude:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[], items:[]},
-    qualidade:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[], items:[]},
+    seguranca:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[{n:'', l:'dias sem acidente com afastamento'}], items:[], rankTitle:'', rank:[]},
+    saude:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[], items:[], rankTitle:'', rank:[]},
+    qualidade:{on:true, title:'', subtitle:'', text:'', photos:[], nums:[], items:[], rankTitle:'', rank:[]},
     aniversariantes:{on:true, title:'', subtitle:'', people:[]},
     contra:{benefUrl:BENEFICIOS_URL, whats:RH_WHATS, whatsTxt:RH_WHATS_TXT, prazo:'até o dia 30 de cada mês'}
   };
@@ -1614,12 +1634,13 @@ function hasContent(sec, d){
     case 'lider': return !!plain(d.text);
     case 'devo': return !!(plain(d.text) || plain(d.verse));
     case 'destaque': return !!(d.title || plain(d.text));
-    case 'seguranca': case 'saude': return !!(d.title || plain(d.text) || (d.items || []).length || numsOf(d).length);
-    case 'qualidade': return !!(d.title || plain(d.text) || numsOf(d).length || (d.photos || []).length || (d.items || []).length);
+    case 'seguranca': case 'saude': return !!(d.title || plain(d.text) || (d.items || []).length || numsOf(d).length || rankOf(d).length);
+    case 'qualidade': return !!(d.title || plain(d.text) || numsOf(d).length || (d.photos || []).length || (d.items || []).length || rankOf(d).length);
     case 'aniversariantes': return (d.people || []).length > 0;
   }
   return true;
 }
+function rankOf(d){ return ((d && d.rank) || []).filter(function(x){ return x && String(x.name || '').trim(); }); }
 function numsOf(d){ return ((d && d.nums) || []).filter(function(x){ return x && String(x.n || '').trim(); }); }
 function fxTitle(sec, d){
   switch(sec){
@@ -1647,9 +1668,9 @@ function structureCopy(src, month, year){
   c.destaque.on = src.destaque.on;
   /* números em destaque: mantém o que cada um significa e limpa o valor do mês */
   function keepLabels(list){ return (list || []).filter(function(x){ return x && x.l; }).map(function(x){ return {n:'', l:x.l}; }); }
-  c.seguranca = Object.assign(c.seguranca, {on:src.seguranca.on, nums:keepLabels(src.seguranca.nums)});
-  c.saude = Object.assign(c.saude, {on:src.saude.on, nums:keepLabels(src.saude.nums)});
-  c.qualidade = Object.assign(c.qualidade, {on:src.qualidade.on, nums:keepLabels(src.qualidade.nums)});
+  c.seguranca = Object.assign(c.seguranca, {on:src.seguranca.on, nums:keepLabels(src.seguranca.nums), rankTitle:src.seguranca.rankTitle || ''});
+  c.saude = Object.assign(c.saude, {on:src.saude.on, nums:keepLabels(src.saude.nums), rankTitle:src.saude.rankTitle || ''});
+  c.qualidade = Object.assign(c.qualidade, {on:src.qualidade.on, nums:keepLabels(src.qualidade.nums), rankTitle:src.qualidade.rankTitle || ''});
   c.aniversariantes = Object.assign(c.aniversariantes, {on:src.aniversariantes.on, subtitle:src.aniversariantes.subtitle});
   c.contra = clone(src.contra);
   c.order = src.order.filter(function(k){ return k.indexOf('fx:') === 0; });
@@ -1688,6 +1709,11 @@ function demoIssue(){
       {src:'', title:'Empilhadeira e rota de pedestres', desc:'Faixas amarelas, buzina nos cruzamentos e contato visual antes de passar.', date:'2026-09-09', setor:'Expedição', by:'Carlos Lima'},
       {src:'', title:'Bloqueio e etiquetagem na manutenção', desc:'Passo a passo do bloqueio de energia antes de abrir qualquer equipamento.', date:'2026-09-16', setor:'Manutenção', by:'Rafael Souza, supervisor'},
       {src:'', title:'Postura no levantamento de sacaria', desc:'Joelhos dobrados, carga perto do corpo e revezamento a cada hora.', date:'2026-09-23', setor:'Ensaque', by:'Carlos Lima'}
+    ],
+    rankTitle:'Setores que mais aplicaram DDS', rank:[
+      {photo:'', name:'Expedição', info:'Gestor: Paulo Mendes', val:'14 DDS'},
+      {photo:'', name:'Moagem', info:'Gestor: Rafael Souza', val:'12 DDS'},
+      {photo:'', name:'Manutenção', info:'Gestora: Lívia Ramos', val:'9 DDS'}
     ]};
   iss.saude = {on:true, title:'Setembro Amarelo: falar é cuidar', subtitle:'Saúde mental também é saúde. Conversamos sobre sinais de alerta e onde buscar ajuda.',
     text:'<p>Tristeza que não passa, isolamento e mudança de sono merecem atenção. Se perceber isso em você ou num colega, puxe conversa e ofereça ajuda sem julgamento.</p><p>O <b>CVV atende pelo telefone 188</b>, 24 horas, de graça. No RH, a porta está sempre aberta para conversar com sigilo.</p>',
@@ -1696,6 +1722,9 @@ function demoIssue(){
       {src:'', title:'Errar, avisar e aprender', desc:'Por que contar um erro logo evita acidentes e retrabalho, e como o líder deve receber o aviso.', date:'2026-09-05', setor:'Produção', by:'Rafael Souza, supervisor'},
       {src:'', title:'Pedir ajuda não é fraqueza', desc:'Frases simples para pedir apoio no turno e como acolher quem pede.', date:'2026-09-12', setor:'Expedição', by:'Marina Alves, RH'},
       {src:'', title:'Escuta sem julgamento', desc:'Ouvir o colega até o fim antes de responder. Exercício em duplas.', date:'2026-09-19', setor:'Administrativo', by:'Marina Alves, RH'}
+    ],
+    rankTitle:'Gestor destaque em DSP', rank:[
+      {photo:'', name:'Rafael Souza', info:'Supervisor de produção', val:'4 DSP'}
     ]};
   iss.qualidade = {on:true, title:'Auditoria de BPF aprovada com 96%', subtitle:'Resultado é o melhor dos últimos três anos e reconhece o cuidado com higiene e rastreabilidade.',
     text:'<p>A auditoria externa de Boas Práticas de Fabricação passou por todas as áreas, do recebimento de grãos à expedição. Os pontos mais elogiados foram a organização do almoxarifado e o registro dos lotes.</p><p>Os dois pontos de melhoria — identificação de utensílios e limpeza das calhas — já estão com plano de ação.</p>',
@@ -1704,6 +1733,11 @@ function demoIssue(){
       {src:'', title:'Identificação correta dos lotes', desc:'Etiqueta legível, data e número do lote em todo saco que sai do ensaque.', date:'2026-09-04', setor:'Ensaque', by:'Juliana Prado, analista da qualidade'},
       {src:'', title:'Utensílio certo para cada área', desc:'Cores diferentes para pás e baldes de matéria-prima e de produto acabado.', date:'2026-09-18', setor:'Mistura', by:'Juliana Prado'}
     ],
+    rankTitle:'Ranking do 5S', rank:[
+      {photo:'', name:'Laboratório', info:'Gestora: Beatriz Nunes', val:'98%'},
+      {photo:'', name:'Almoxarifado', info:'Gestor: Lucas Martins', val:'95%'},
+      {photo:'', name:'Ensaque', info:'Gestor: Diego Costa', val:'91%'}
+    ]
   };
   iss.aniversariantes = {on:true, title:'', subtitle:'A Raguife deseja um novo ano cheio de saúde, alegria e conquistas.', people:[
     {name:'Carlos Lima', info:'Segurança do Trabalho', day:'3', photo:''},
@@ -2008,9 +2042,9 @@ var FX_RENDER = {
       + (d.author ? '<div class="meta">Por ' + esc(d.author) + '</div>' : '')
       + ((d.gallery || []).length ? hBlock('Mais fotos') + galHTML(d.gallery, '#0a7a47') : '')};
   },
-  seguranca:function(s, n, p){ return talksPage('seguranca', s, n, p, 'DDS aplicados no mês', 'Foto do DDS'); },
-  saude:function(s, n, p){ return talksPage('saude', s, n, p, 'Diálogos de Segurança Psicológica (DSP)', 'Foto do DSP'); },
-  qualidade:function(q, n, p){ return talksPage('qualidade', q, n, p, 'Pílulas de Qualidade', 'Foto da pílula'); },
+  seguranca:function(s, n, p){ return talksPage('seguranca', s, n, p, 'DDS aplicados no mês', 'Foto do DDS', 'Destaques em DDS'); },
+  saude:function(s, n, p){ return talksPage('saude', s, n, p, 'Diálogos de Segurança Psicológica (DSP)', 'Foto do DSP', 'Destaques em DSP'); },
+  qualidade:function(q, n, p){ return talksPage('qualidade', q, n, p, 'Pílulas de Qualidade', 'Foto da pílula', 'Destaques do 5S'); },
   aniversariantes:function(a, n, p){
     var top = band('aniversariantes', 'Parabéns!', 'Aniversariantes de ' + MONTHS[CUR.month], '', n);
     if(p.empty) return {top:top, body:emptyBox('Aniversariantes')};
@@ -2032,7 +2066,19 @@ function numsHTML(d){
     return '<div class="band-num"><b>' + esc(x.n) + '</b>' + (x.l ? '<span>' + esc(x.l) + '</span>' : '') + '</div>';
   }).join('') + '</div>';
 }
-function talksPage(sec, s, n, p, listLabel, phLabel){
+/* ranking: a ordem da lista é a colocação; o 1º lugar ganha destaque */
+function rankHTML(s, fallback){
+  var L = rankOf(s); if(!L.length) return '';
+  return hBlock(s.rankTitle || fallback) + '<ol class="rank">' + L.map(function(x, i){
+    var cap = [x.name, x.info, x.val].filter(Boolean).join(' · ');
+    return '<li class="rk' + (i === 0 ? ' first' : '') + '"><span class="rk-pos">' + (i + 1) + 'º</span>'
+      + (x.photo && !isRef(x.photo) ? phBox(x.photo, x.name, cap) : '')
+      + '<div class="rk-t">' + (i === 0 ? '<span class="rk-k">' + ic('trophy') + 'Destaque do mês' + '</span>' : '')
+      + '<b>' + esc(x.name) + '</b>' + (x.info ? '<span>' + esc(x.info) + '</span>' : '') + '</div>'
+      + (x.val ? '<span class="rk-val">' + esc(x.val) + '</span>' : '') + '</li>';
+  }).join('') + '</ol>';
+}
+function talksPage(sec, s, n, p, listLabel, phLabel, rankLabel){
   var color = SEC[sec].color;
   var top = band(sec, 'Seção fixa · ' + edLabel(CUR), SEC[sec].name, numsHTML(s), n);
   if(p.empty) return {top:top, body:emptyBox(SEC[sec].name)};
@@ -2052,7 +2098,8 @@ function talksPage(sec, s, n, p, listLabel, phLabel){
           + '<div class="talk-b">' + (!src && date ? '<span class="talk-date" style="position:static;align-self:flex-start">' + esc(date) + '</span>' : '')
           + '<b>' + esc(it.title || 'Tema') + '</b>' + (it.desc ? '<p>' + esc(it.desc) + '</p>' : '')
           + (by ? '<span class="talk-by">' + esc(by) + '</span>' : '') + '</div></article>';
-      }).join('') + '</div>' : '')};
+      }).join('') + '</div>' : '')
+    + rankHTML(s, rankLabel)};
 }
 function culturaHTML(b, n){
   var quotes = (b.quotes || []).filter(function(q){ return q.text; }).map(function(q){
@@ -2497,6 +2544,17 @@ function numsList(phN, phL){
     empty:'Nenhum número em destaque.',
     item:[{row:[{k:'n', t:'text', label:'Número', ph:'Ex.: ' + phN}, {k:'l', t:'text', label:'O que ele significa', ph:'Ex.: ' + phL}]}]};
 }
+function rankList(phTitle, phName, phInfo, phVal){
+  return [{t:'sep', label:'Ranking do mês (opcional)'},
+    {k:'rankTitle', t:'text', label:'Título do ranking', ph:'Ex.: ' + phTitle},
+    {k:'rank', t:'list', itemName:'Colocado', titleKey:'name', addLabel:'Adicionar ao ranking',
+      hint:'A ordem da lista é a colocação (use as setas). Pode ter só o 1º lugar. Se ficar vazio, o ranking não aparece.',
+      empty:'Nenhum destaque neste mês.',
+      item:[{k:'photo', t:'image', ratio:'1/1'},
+        {k:'name', t:'text', label:'Setor ou gestor', ph:'Ex.: ' + phName},
+        {k:'info', t:'text', label:'Detalhe (opcional)', ph:'Ex.: ' + phInfo},
+        {k:'val', t:'text', label:'Resultado (opcional)', ph:'Ex.: ' + phVal}]}];
+}
 function peopleList(label, ph, extra, opts){
   opts = opts || {};
   return Object.assign({k:'people', t:'list', label:label, itemName:'Pessoa', titleKey:'name', addLabel:'Adicionar pessoa', bulk:true,
@@ -2551,7 +2609,7 @@ var F = {
     numsList('287', 'dias sem acidente com afastamento'),
     {t:'sep', label:'DDS aplicados no mês'},
     talksList('DDS', 'Ex.: Uso correto do protetor auricular')
-  ],
+  ].concat(rankList('Setores que mais aplicaram DDS', 'Expedição', 'Gestor: Paulo Mendes', '14 DDS')),
   saude:[
     {t:'sep', label:'Assunto do mês'},
     {k:'title', t:'text', label:'Título', ph:'Ex.: Setembro Amarelo: falar é cuidar', structural:true},
@@ -2562,7 +2620,7 @@ var F = {
     numsList('142', 'vacinados contra a gripe'),
     {t:'sep', label:'DSP · Diálogos de Segurança Psicológica'},
     talksList('DSP', 'Ex.: Pedir ajuda não é fraqueza')
-  ],
+  ].concat(rankList('Gestor destaque em DSP', 'Rafael Souza', 'Supervisor de produção', '4 DSP')),
   qualidade:[
     {k:'title', t:'text', label:'Título', ph:'Ex.: Auditoria de BPF aprovada com 96%', structural:true},
     {k:'subtitle', t:'textarea', rows:2, label:'Resumo'},
@@ -2572,7 +2630,7 @@ var F = {
     numsList('96%', 'nota na auditoria de BPF'),
     {t:'sep', label:'Pílulas de Qualidade do mês'},
     talksList('Pílula', 'Ex.: Identificação correta dos lotes', {add:'Adicionar pílula', none:'Nenhuma pílula ainda.'})
-  ],
+  ].concat(rankList('Ranking do 5S', 'Laboratório', 'Gestora: Beatriz Nunes', '98%')),
   aniversariantes:[
     {t:'info', html:'Os cartões aparecem em ordem de dia. Coloque só o dia (ex.: 12).'},
     {k:'title', t:'text', label:'Título (opcional)', ph:'Ex.: Feliz aniversário!'},
@@ -2904,7 +2962,7 @@ function isEmptyItem(it){
   return !Object.keys(it).some(function(k){ var v = it[k]; return Array.isArray(v) ? v.length : (typeof v === 'string' ? v.trim() : false); });
 }
 function cleanLists(obj){
-  ['items','people','quotes','kpis','nums','fams'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].filter(function(x){ return !isEmptyItem(x); }); });
+  ['items','people','quotes','kpis','nums','fams','rank'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].filter(function(x){ return !isEmptyItem(x); }); });
   ['gallery','images'].forEach(function(k){ if(Array.isArray(obj[k])) obj[k] = obj[k].map(normImg).filter(function(g){ return g.src || g.cap; }); });
 }
 
@@ -2926,9 +2984,9 @@ function cardInfo(key){
     else switch(s){
       case 'lider': sub = esc([d.name, d.title].filter(Boolean).join(' · ')); break;
       case 'devo': sub = esc([d.title, d.ref].filter(Boolean).join(' · ')); break;
-      case 'seguranca': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DDS'; break;
-      case 'saude': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DSP'; break;
-      case 'qualidade': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ((d.items || []).length === 1 ? ' pílula' : ' pílulas'); break;
+      case 'seguranca': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DDS' + (rankOf(d).length ? ' · ranking' : ''); break;
+      case 'saude': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ' DSP' + (rankOf(d).length ? ' · ranking' : ''); break;
+      case 'qualidade': sub = esc(d.title || 'Sem assunto') + ' · ' + (d.items || []).length + ((d.items || []).length === 1 ? ' pílula' : ' pílulas') + (rankOf(d).length ? ' · ranking' : ''); break;
       case 'aniversariantes': sub = (d.people || []).length + ' aniversariantes'; break;
       default: sub = esc(d.title || '');
     }
@@ -3367,7 +3425,7 @@ function newEditionDialog(){
   var m = (current.month + 1) % 12, y = current.year + (current.month === 11 ? 1 : 0);
   var html = '<div class="row2"><div class="f"><label for="neM">Mês</label><select id="neM">' + MONTHS.map(function(x, i){ return '<option value="' + i + '"' + (i === m ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>'
     + '<div class="f"><label for="neY">Ano</label><input id="neY" type="number" min="2020" max="2100" value="' + y + '"></div></div>'
-    + '<label class="opt"><input type="radio" name="neMode" value="estrutura" checked><div><b>Continuar da edição atual (recomendado)</b><span>Mantém assinaturas, fotos da liderança e as seções ligadas. Limpa os textos, DDS, DSP, Pílulas de Qualidade e aniversariantes.</span></div></label>'
+    + '<label class="opt"><input type="radio" name="neMode" value="estrutura" checked><div><b>Continuar da edição atual (recomendado)</b><span>Mantém assinaturas, fotos da liderança e as seções ligadas. Limpa os textos, DDS, DSP, Pílulas de Qualidade, rankings e aniversariantes.</span></div></label>'
     + '<label class="opt"><input type="radio" name="neMode" value="copia"><div><b>Cópia completa</b><span>Copia tudo da edição atual, inclusive textos e fotos.</span></div></label>'
     + '<label class="opt"><input type="radio" name="neMode" value="branco"><div><b>Em branco</b><span>Começa do zero, com todas as seções fixas vazias.</span></div></label>';
   dialog({title:'Nova edição', html:html, buttons:[{label:'Cancelar', value:false},
