@@ -330,6 +330,30 @@ a{color:inherit}
 .cv-go{display:inline-flex;align-items:center;gap:.6em;border:0;border-radius:999px;background:#fff;color:#01361d;font-weight:800;padding:.85em 1.3em;font-size:.92em}
 .cv-go:hover{background:var(--lime-l)}
 .cv-count{font-size:.78em;color:#b9d3c1;font-weight:600}
+.cv-views{display:inline-flex;align-items:center;gap:.4em;font-size:.78em;color:#c8ea8f;font-weight:700}
+.cv-views[hidden]{display:none}
+.cv-views .ico{width:1.15em;height:1.15em}
+.views-row{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--lime-xl);color:var(--g800);font-size:13px;font-weight:700}
+.views-row .ico{width:17px;height:17px}
+.views-row b{font-size:17px}
+/* reações (fim de cada página) */
+.rx{margin:1.6em clamp(18px,6cqi,48px) 0;padding-top:1.1em;border-top:1px solid var(--pg-line,rgba(0,0,0,.08))}
+.rx-q{display:block;font-size:.7em;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--pg-muted);margin-bottom:.65em}
+.rx-row{display:flex;flex-wrap:wrap;gap:.45em}
+.rx-b{display:inline-flex;align-items:center;gap:.35em;border:0;border-radius:999px;padding:.45em .8em .45em .6em;min-height:2.6em;
+  background:rgba(127,127,127,.13);color:var(--pg-ink);font-weight:800;font-size:.9em;font-variant-numeric:tabular-nums;
+  transition:transform .15s,background .15s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
+.rx-b .e{font-size:1.3em;line-height:1}
+.rx-b .c:empty{display:none}
+.rx-b:hover{background:rgba(127,127,127,.22)}
+.rx-b.on{background:var(--pg-card,#fff);color:var(--pg-head,var(--pg-ink));box-shadow:inset 0 0 0 2px var(--pg-accent-t,var(--pg-accent))}
+.th-lider .rx-b.on,.th-frase .rx-b.on,.th-contra .rx-b.on{background:rgba(255,255,255,.95);color:#01361d}
+.rx-b.pop .e{animation:rxPop .4s ease-out}
+@keyframes rxPop{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}
+.rx-tot{display:block;margin-top:.6em;font-size:.74em;font-weight:600;color:var(--pg-muted);min-height:1.2em}
+@media (prefers-reduced-motion:reduce){ .rx-b.pop .e{animation:none} }
+.rx+.pg-end{border-top:0;margin-top:.2em}
+@media print{ .rx{display:none!important} }
 @container page (min-width:700px){
   .cv-grid{flex-direction:row;align-items:center;gap:2.2em}
   .cv-text{flex:1 1 0;min-width:0}
@@ -1969,10 +1993,10 @@ function pageInner(L, i){
     case 'news': r = newsHTML(p, n); break;
     case 'contra': r = contraHTML(n); break;
   }
-  var end = '';
+  var end = rxBarHTML(p);
   if(p.kind !== 'capa'){
     var nx = L[i + 1];
-    end = '<div class="pg-end"><span class="pg-num">Pág. ' + n + ' de ' + L.length + '</span>'
+    end += '<div class="pg-end"><span class="pg-num">Pág. ' + n + ' de ' + L.length + '</span>'
       + (nx ? '<button class="pg-next" type="button" data-go="next">Próxima: ' + esc(nx.label) + ' ' + ic('arrowRight') + '</button>'
             : '<button class="pg-next" type="button" data-go="0">Voltar à capa ' + ic('arrowUp') + '</button>')
       + '</div>';
@@ -1993,7 +2017,7 @@ function coverHTML(L){
     + '<div class="cv-text"><h1>' + esc(iss.title || 'Nosso mês em destaque') + '</h1>'
     + (iss.subtitle ? '<p class="lead">' + esc(iss.subtitle) + '</p>' : '')
     + '<div class="cv-go-row"><button class="cv-go" type="button" data-go="next">Abrir o jornal ' + ic('arrowRight') + '</button>'
-    + '<span class="cv-count">' + L.length + ' páginas</span></div></div>'
+    + '<span class="cv-count">' + L.length + ' páginas</span><span class="cv-views" hidden></span></div></div>'
     + '</div></div>';
 }
 function summaryHTML(L, n){
@@ -2219,7 +2243,7 @@ function bookHTML(L, o){
 }
 function buildBook(iss, opts){
   opts = opts || {};
-  RO.preview = !!opts.preview; RO.link = opts.link || '';
+  RO.preview = !!opts.preview; RO.link = opts.link || ''; RO.reactions = !!opts.reactions;
   var L = pageList(iss);
   return {list:L, html:bookHTML(L, opts)};
 }
@@ -2439,6 +2463,117 @@ function JR_RUNTIME(){
   window.JR = {mountBook:mountBook, LB:LB};
 }
 JR_RUNTIME();
+
+/* =====================================================================
+   8b. CONTADOR DE LEITURAS — Firestore: leituras/{AAAA-MM} → {n, ultima}
+   Conta cada abertura do jornal pelo link (uma vez por visita do navegador:
+   recarregar a página não soma de novo). O número aparece na capa para todos.
+   ===================================================================== */
+var VIEWS_COLLECTION = 'leituras';
+function viewsTxt(n){ n = n || 0; return fmtBR(n) + (n === 1 ? ' leitura' : ' leituras'); }
+function paintViews(n, root){
+  (root || document).querySelectorAll('.cv-views').forEach(function(el){
+    if(n == null){ el.hidden = true; return; }
+    el.innerHTML = ic('eye') + ' ' + viewsTxt(n); el.hidden = false;
+  });
+}
+function getViews(key){
+  if(!FB_READY) return Promise.resolve(null);
+  return db.collection(VIEWS_COLLECTION).doc(key).get().then(function(d){ return d.exists ? (d.data().n || 0) : 0; });
+}
+/* registra a abertura (no leitor) e devolve o total */
+function countView(key){
+  if(!FB_READY) return Promise.resolve(null);
+  var first = true, sk = 'jornalRaguife.lido.' + key;
+  try{ first = !sessionStorage.getItem(sk); sessionStorage.setItem(sk, '1'); }catch(e){}
+  var FV = firebase.firestore.FieldValue;
+  var w = first ? db.collection(VIEWS_COLLECTION).doc(key).set({n:FV.increment(1), ultima:FV.serverTimestamp()}, {merge:true}) : Promise.resolve();
+  return w.catch(function(e){ console.warn('leitura não contada', e); }).then(function(){ return getViews(key); });
+}
+
+/* =====================================================================
+   8c. REAÇÕES — cada página (menos capa, índice e contracapa) recebe uma barra
+   de reações positivas. Cada celular escolhe uma reação por página (toque de
+   novo para tirar, ou toque em outra para trocar).
+   Firestore: reacoes/{AAAA-MM} → {p: {"<página>": {amei: 3, parabens: 1, …}}}
+   ===================================================================== */
+var REACTIONS = [
+  {k:'amei',     e:'❤️', l:'Amei'},
+  {k:'parabens', e:'👏', l:'Parabéns'},
+  {k:'festa',    e:'🎉', l:'Comemorar'},
+  {k:'forca',    e:'💪', l:'Força'},
+  {k:'gratidao', e:'🙏', l:'Gratidão'}
+];
+var RX_COLLECTION = 'reacoes';
+var RX = {ed:'', counts:{}, mine:{}, readonly:false, demo:false};
+function rxBarHTML(p){
+  if(!RO.reactions || p.kind === 'capa' || p.kind === 'sumario' || p.kind === 'contra') return '';
+  return '<div class="rx no-print" data-rk="' + esc(p.key) + '"><span class="rx-q">O que você achou desta página?</span><div class="rx-row">'
+    + REACTIONS.map(function(r){
+        return '<button class="rx-b" type="button" data-rx="' + r.k + '" title="' + r.l + '" aria-pressed="false">'
+          + '<span class="e" aria-hidden="true">' + r.e + '</span><span class="c"></span><span class="sr">' + r.l + '</span></button>';
+      }).join('') + '</div><span class="rx-tot" aria-live="polite"></span></div>';
+}
+function rxTotal(pk){ var c = RX.counts[pk] || {}, t = 0; REACTIONS.forEach(function(r){ t += Math.max(0, c[r.k] || 0); }); return t; }
+function rxGrand(){ var t = 0; Object.keys(RX.counts).forEach(function(pk){ t += rxTotal(pk); }); return t; }
+function paintReactions(root){
+  (root || document).querySelectorAll('.rx[data-rk]').forEach(function(bar){
+    var pk = bar.getAttribute('data-rk'), c = RX.counts[pk] || {}, mine = RX.mine[pk];
+    bar.querySelectorAll('.rx-b').forEach(function(b){
+      var k = b.getAttribute('data-rx'), n = Math.max(0, c[k] || 0), on = mine === k;
+      b.querySelector('.c').textContent = n ? fmtBR(n) : '';
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('aria-label', REACTIONS.filter(function(r){ return r.k === k; })[0].l + (n ? ': ' + n : ''));
+    });
+    var t = rxTotal(pk), tot = bar.querySelector('.rx-tot');
+    tot.textContent = mine ? (t > 1 ? 'Você e mais ' + fmtBR(t - 1) + (t - 1 === 1 ? ' pessoa reagiram' : ' pessoas reagiram') : 'Você reagiu a esta página')
+      : (t ? fmtBR(t) + (t === 1 ? ' pessoa reagiu' : ' pessoas reagiram') : 'Seja o primeiro a reagir');
+  });
+}
+function rxMineKey(ed){ return 'jornalRaguife.reacoes.' + ed; }
+function rxLoadMine(ed){ try{ return JSON.parse(localStorage.getItem(rxMineKey(ed)) || '{}') || {}; }catch(e){ return {}; } }
+function rxSaveMine(){ try{ localStorage.setItem(rxMineKey(RX.ed), JSON.stringify(RX.mine)); }catch(e){} }
+function getReactions(ed){
+  if(!FB_READY) return Promise.resolve({});
+  return db.collection(RX_COLLECTION).doc(ed).get().then(function(d){ return (d.exists && d.data().p) || {}; });
+}
+/* prepara as reações de uma edição: o que já existe na nuvem + o que este celular escolheu */
+function rxSetup(ed, o){
+  o = o || {};
+  RX.ed = ed; RX.readonly = !!o.readonly; RX.demo = !!o.demo;
+  RX.mine = o.readonly ? {} : rxLoadMine(ed);
+  if(o.demo){ RX.counts = demoReactions(); return Promise.resolve(); }
+  return getReactions(ed).then(function(c){ if(RX.ed === ed) RX.counts = c; }, function(e){ console.warn('reações indisponíveis', e); });
+}
+function demoReactions(){
+  var c = {}, seed = [[9,4,2,1,3],[5,7,3,2,1],[3,2,6,4,0],[12,3,1,0,5],[2,8,9,1,0],[6,1,0,2,4]];
+  if(current) current.order.forEach(function(k, i){ var s = seed[i % seed.length], x = {}; REACTIONS.forEach(function(r, j){ x[r.k] = s[j]; }); c[k] = x; });
+  return c;
+}
+function react(pk, k, btn){
+  if(RX.readonly){ toast('No link dos colaboradores, cada um pode reagir às páginas'); return; }
+  var prev = RX.mine[pk], delta = {};
+  if(prev) delta[prev] = -1;
+  if(prev !== k) delta[k] = (delta[k] || 0) + 1;
+  var c = RX.counts[pk] = RX.counts[pk] || {};
+  Object.keys(delta).forEach(function(r){ c[r] = Math.max(0, (c[r] || 0) + delta[r]); });
+  if(prev === k) delete RX.mine[pk]; else RX.mine[pk] = k;
+  rxSaveMine();
+  document.querySelectorAll('.rx[data-rk]').forEach(function(bar){ if(bar.getAttribute('data-rk') === pk) paintReactions(bar.parentNode); });
+  if(btn && prev !== k){ btn.classList.remove('pop'); void btn.offsetWidth; btn.classList.add('pop'); }
+  if(!FB_READY || RX.demo) return;
+  var FV = firebase.firestore.FieldValue, inc = {}, upd = {p:{}};
+  Object.keys(delta).forEach(function(r){ inc[r] = FV.increment(delta[r]); });
+  upd.p[pk] = inc;
+  db.collection(RX_COLLECTION).doc(RX.ed).set(upd, {merge:true})
+    .catch(function(e){ console.warn('reação não salva', e); toast('Sem conexão: sua reação não foi registrada'); });
+}
+document.addEventListener('click', function(e){
+  var b = e.target.closest && e.target.closest('.rx-b'); if(!b) return;
+  var bar = b.closest('.rx[data-rk]'); if(!bar) return;
+  e.preventDefault(); e.stopPropagation();
+  react(bar.getAttribute('data-rk'), b.getAttribute('data-rx'), b);
+}, true);
 
 /* =====================================================================
    9. EDITOR DO RH
@@ -3188,7 +3323,7 @@ function renderPreview(){
   var host = $('frame'); if(!host || !current) return;
   /* volta para a mesma página depois de redesenhar (pela seção, não pelo número) */
   var keepKey = ED.drawer ? ED.drawer.key : (ED.L[ED.pageIdx] && ED.L[ED.pageIdx].key), keep = ED.pageIdx;
-  var B = buildBook(current, {preview:true});
+  var B = buildBook(current, {preview:true, reactions:true});
   ED.L = B.list; ED.sig = listSignature(B.list);
   if(ED.fb) ED.fb.destroy();
   host.innerHTML = B.html;
@@ -3198,6 +3333,30 @@ function renderPreview(){
   var ki = keepKey ? pageIndexOfKey(ED.L, keepKey) : -1;
   ED.pageIdx = ki >= 0 ? ki : Math.min(keep, ED.L.length - 1);
   ED.fb.go(ED.pageIdx, true);
+  edViews();
+  paintReactions(host);
+}
+/* leituras da edição aberta: aparece na capa da pré-visualização e na aba Publicar */
+function edViews(fresh){
+  if(!current) return;
+  var key = keyOf(current);
+  if(!FB_READY){
+    if(RX.ed !== key){ rxSetup(key, {readonly:true, demo:IS_PREVIEW_BUILD}); paintReactions(); }
+    var demo = IS_PREVIEW_BUILD ? 128 : null; paintViews(demo); paintPubViews(demo); return;
+  }
+  if(ED.viewsKey !== key){ ED.views = null; ED.viewsKey = key; RX.counts = {}; fresh = true; }
+  if(!fresh){ paintViews(ED.views); paintPubViews(ED.views); return; }   /* evita ler a nuvem a cada letra digitada */
+  Promise.all([getViews(key), rxSetup(key, {readonly:true})]).then(function(r){
+    if(keyOf(current) !== key) return; ED.views = r[0]; paintViews(r[0]); paintPubViews(r[0]); paintReactions();
+  }).catch(function(e){ console.warn('contador indisponível', e); });
+}
+function paintPubViews(n){
+  var el = $('pubViews'); if(!el) return;
+  if(n == null){ el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  var rx = rxGrand();
+  el.innerHTML = ic('eye') + '<span><b>' + fmtBR(n) + '</b> ' + (n === 1 ? 'leitura' : 'leituras')
+    + ' · <b>' + fmtBR(rx) + '</b> ' + (rx === 1 ? 'reação' : 'reações') + ' nesta edição</span>';
 }
 function updatePreviewPage(key){
   if(!ED.fb || !key) return renderPreview();
@@ -3209,7 +3368,7 @@ function updatePreviewPage(key){
   keys.forEach(function(k){
     var i = pageIndexOfKey(L, k); if(i < 0) return;
     var pg = ED.fb.pages[i], sc = pg && pg.querySelector('.pg-scroll'); if(!sc) return;
-    var top = sc.scrollTop; sc.innerHTML = pageInner(L, i); sc.scrollTop = top;
+    var top = sc.scrollTop; sc.innerHTML = pageInner(L, i); paintReactions(sc); sc.scrollTop = top;
   });
 }
 function showPage(key){
@@ -3228,10 +3387,11 @@ function bumpScale(d){
 }
 function openFull(){
   ED.fsOpen = true;
-  var B = buildBook(current, {preview:true, edge:true});
-  $('fsHost').innerHTML = B.html; $('fsPrev').hidden = false;
+  var B = buildBook(current, {preview:true, edge:true, reactions:true});
+  $('fsHost').innerHTML = B.html; $('fsPrev').hidden = false; paintReactions($('fsHost'));
   ED.fsFb = JR.mountBook($('fsHost').querySelector('.book'), {hint:true});
   ED.fsFb.setScale(ED.scale); ED.fsFb.go(ED.pageIdx, true);
+  if(FB_READY ? ED.views != null : IS_PREVIEW_BUILD) paintViews(FB_READY ? ED.views : 128, $('fsHost'));
 }
 function closeFull(){
   if(!ED.fsOpen) return;
@@ -3290,6 +3450,7 @@ function renderPublish(){
   var link = readerUrl(), isHttp = /^https?:/.test(location.href);
   host.innerHTML =
     '<div class="card"><h3>' + ic('send') + 'Situação da edição</h3><div class="steps">' + steps + '</div>' + acts
+    + '<div class="views-row hide" id="pubViews"></div>'
     + '<p class="note">' + (step === 2 ? 'Publicada em ' + fmtDate(current.publishedAt) + '. Está travada contra mudanças acidentais.' : 'Rascunhos e edições em revisão não aparecem para os colaboradores.') + '</p></div>'
     + '<div class="card"><h3>' + ic('check') + 'Antes de publicar</h3><ul class="checklist">' + ck + '</ul></div>'
     + '<div class="card"><h3>' + ic('link') + 'Link para os colaboradores</h3><div class="link-box"><code id="linkTxt">' + esc(link) + '</code></div>'
@@ -3306,6 +3467,7 @@ function renderPublish(){
     + '<button class="btn ghost" type="button" data-pub="restore">' + ic('upload') + 'Restaurar</button></div>'
     + '<p class="note">Guarde uma cópia no computador de vez em quando. Ela inclui todas as edições e fotos.</p></div>';
   renderHistory();
+  if(FB_READY) edViews(true); else paintPubViews(IS_PREVIEW_BUILD ? 128 : null);
 }
 function wirePublishTab(){
   $('tab-publicar').addEventListener('click', function(e){
@@ -3535,9 +3697,11 @@ var R = {fb:null, keys:[], scale:1};
 function rMsg(title, txt){ $('rView').innerHTML = '<div class="r-msg"><div><b>' + title + '</b>' + txt + '</div></div>'; }
 function rMount(iss, demo){
   current = ensureExtras(iss);
-  var B = buildBook(current, {preview:!!demo, edge:true});
+  var B = buildBook(current, {preview:!!demo, edge:true, reactions:true});
   if(R.fb) R.fb.destroy();
   $('rView').innerHTML = B.html;
+  var ed = keyOf(current);
+  rxSetup(ed, {demo:!!demo}).then(function(){ if(RX.ed === ed) paintReactions($('rView')); });
   R.fb = JR.mountBook($('rView').querySelector('.book'), {hint:true, onChange:function(i){
     try{ history.replaceState(null, '', location.pathname + location.search + '#p' + (i + 1)); }catch(e){}
   }});
@@ -3551,6 +3715,8 @@ function rShow(key){
   load.then(function(iss){
     if(!iss || iss.status !== 'Publicado'){ rMsg('Edição não encontrada', 'Escolha outra edição no menu acima.'); return; }
     $('rSelect').value = key; rMount(iss, false);
+    countView(key).then(function(n){ if($('rSelect').value === key) paintViews(n, $('rView')); })
+      .catch(function(e){ console.warn('contador indisponível', e); });
   }).catch(function(e){ console.warn(e); rMsg('Não foi possível abrir a edição', 'Verifique a internet e tente de novo.'); });
 }
 function bootReader(){
@@ -3570,7 +3736,7 @@ function bootReader(){
     R.keys = Object.keys(all).filter(function(k){ return all[k] && all[k].status === 'Publicado'; }).sort().reverse();
     if(!R.keys.length){
       if(!FB_READY && (IS_PREVIEW_BUILD || !firebaseConfigured() || location.protocol === 'file:')){
-        $('rSelect').innerHTML = '<option>Demonstração</option>'; rMount(demoIssue(), true); return;
+        $('rSelect').innerHTML = '<option>Demonstração</option>'; rMount(demoIssue(), true); paintViews(128, $('rView')); return;
       }
       $('rSelect').style.display = 'none';
       rMsg(FB_READY ? 'Nenhuma edição publicada ainda' : 'Não foi possível conectar', FB_READY ? 'Assim que o RH publicar a primeira edição, ela aparece aqui.' : 'Verifique a internet e tente de novo em alguns minutos.');
